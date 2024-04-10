@@ -4,7 +4,7 @@
 
 ## 环境
 
-gcc13，cmake，ninja
+gcc，cmake，ninja
 
 ## 编译
 
