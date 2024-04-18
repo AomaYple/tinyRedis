@@ -17,6 +17,6 @@ ninja
 ## 运行
 
 ```shell
-cd build/tinyKv
-./tinyKv
+cd build/tinyKV
+./tinyKV
 ```
