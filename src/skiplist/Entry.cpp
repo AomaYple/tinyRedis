@@ -14,16 +14,20 @@ Entry::Entry(std::string &&key, std::unordered_set<std::string> &&value) noexcep
 Entry::Entry(std::string &&key, std::set<std::string> &&value) noexcept :
     key{std::move(key)}, value{std::move(value)} {}
 
-auto Entry::getKey() const noexcept -> std::string_view { return this->key; }
+auto Entry::getKey() noexcept -> std::string & { return this->key; }
 
-auto Entry::getValueType() const noexcept -> std::size_t { return this->value.index(); }
+auto Entry::getValueType() const noexcept -> unsigned char { return this->value.index(); }
 
-auto Entry::getStringValue() const -> std::string_view { return std::get<0>(this->value); }
+auto Entry::getStringValue() -> std::string & { return std::get<std::string>(this->value); }
 
-auto Entry::getHashValue() -> std::unordered_map<std::string, std::string> & { return std::get<1>(this->value); }
+auto Entry::getHashValue() -> std::unordered_map<std::string, std::string> & {
+    return std::get<std::unordered_map<std::string, std::string>>(this->value);
+}
 
-auto Entry::getListValue() -> std::queue<std::string> & { return std::get<2>(this->value); }
+auto Entry::getListValue() -> std::queue<std::string> & { return std::get<std::queue<std::string>>(this->value); }
 
-auto Entry::getSetValue() -> std::unordered_set<std::string> & { return std::get<3>(this->value); }
+auto Entry::getSetValue() -> std::unordered_set<std::string> & {
+    return std::get<std::unordered_set<std::string>>(this->value);
+}
 
-auto Entry::getSortedSetValue() -> std::set<std::string> & { return std::get<4>(this->value); }
+auto Entry::getSortedSetValue() -> std::set<std::string> & { return std::get<std::set<std::string>>(this->value); }

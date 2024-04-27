@@ -11,10 +11,26 @@ class SkipList {
 public:
     constexpr SkipList() noexcept = default;
 
-    SkipList(const SkipList &) = delete;
+    SkipList(const SkipList &);
+
+    SkipList(SkipList &&) noexcept;
+
+    auto operator=(const SkipList &) -> SkipList &;
+
+    auto operator=(SkipList &&) noexcept -> SkipList &;
+
+    ~SkipList();
+
+    [[nodiscard]] auto find(std::string_view key) const -> Entry &;
 
 private:
-    static auto destroy(const Node *node) -> void;
+    [[nodiscard]] static auto random() -> double;
+
+    [[nodiscard]] static auto randomLevel() -> unsigned char;
+
+    [[nodiscard]] auto copy() const -> Node *;
+
+    auto destroy() noexcept -> void;
 
     Node *start{};
 };

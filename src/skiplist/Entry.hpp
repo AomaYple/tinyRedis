@@ -19,11 +19,11 @@ public:
 
     explicit Entry(std::string &&key, std::set<std::string> &&value = {}) noexcept;
 
-    auto getKey() const noexcept -> std::string_view;
+    auto getKey() noexcept -> std::string &;
 
-    auto getValueType() const noexcept -> std::size_t;
+    auto getValueType() const noexcept -> unsigned char;
 
-    auto getStringValue() const -> std::string_view;
+    auto getStringValue() -> std::string &;
 
     auto getHashValue() -> std::unordered_map<std::string, std::string> &;
 
