@@ -34,19 +34,42 @@ SkipList::~SkipList() { this->destroy(); }
 auto SkipList::find(std::string_view key) const -> Entry & {
     Node *node{this->start};
     while (node != nullptr) {
-        if (key < std::get<std::string_view>(node->data)) break;
+        Node *const next{node->next}, *const down{node->down};
 
-        if (node->down != nullptr) {
-            Node *next{node->next};
-            if (next == nullptr || key < std::get<std::string_view>(next->data)) node = node->down;
-            else node = next;
-        } else {
-            if (key == std::get<std::string_view>(node->data)) return std::get<Entry>(node->data);
-            else node = node->next;
-        }
+        if (down == nullptr && key == std::get<std::string_view>(node->data)) return std::get<Entry>(node->data);
+        if (next != nullptr && key >= std::get<std::string_view>(next->data)) node = next;
+        else node = down;
     }
 
     throw Exception{"key not found"};
+}
+
+auto SkipList::insert(Entry &&entry) -> void {
+    const std::string_view key{entry.getKey()};
+    unsigned char level{SkipList::randomLevel()};
+    Node *node{this->start}, *previous{};
+
+    while (node != nullptr && level > node->level) {
+        if (previous != nullptr) previous->down = new Node{key, level, nullptr, node};
+        else previous = new Node{key, level, nullptr, node};
+
+        --level;
+    }
+    while (node != nullptr && node->level > level) node = node->down;
+
+    while (node != nullptr && node->down != nullptr) {
+        Node *const next{node->next};
+
+        while (next != nullptr && key >= std::get<std::string_view>(next->data)) node = next;
+        node->next = new Node{key, level, next};
+
+        if (previous != nullptr) previous->down = node->next;
+        else previous = node->next;
+
+        node = node->down;
+    }
+
+    while (node != nullptr) node = node->next;
 }
 
 auto SkipList::random() -> double {
@@ -57,7 +80,7 @@ auto SkipList::random() -> double {
 }
 
 auto SkipList::randomLevel() -> unsigned char {
-    unsigned char level{1};
+    unsigned char level{};
     while (SkipList::random() < 0.5 && level < 32) ++level;
 
     return level;

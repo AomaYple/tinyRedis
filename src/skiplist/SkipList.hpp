@@ -5,6 +5,7 @@
 class SkipList {
     struct Node {
         std::variant<std::string_view, Entry> data;
+        unsigned char level;
         Node *next{}, *down{};
     };
 
@@ -22,6 +23,8 @@ public:
     ~SkipList();
 
     [[nodiscard]] auto find(std::string_view key) const -> Entry &;
+
+    auto insert(Entry &&entry) -> void;
 
 private:
     [[nodiscard]] static auto random() -> double;
