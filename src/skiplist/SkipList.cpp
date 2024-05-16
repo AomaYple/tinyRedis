@@ -1,7 +1,5 @@
 #include "SkipList.hpp"
 
-#include "../exception/Exception.hpp"
-
 #include <random>
 #include <utility>
 
@@ -64,7 +62,6 @@ auto SkipList::find(std::string_view key) const noexcept -> std::shared_ptr<Entr
 
 auto SkipList::insert(std::shared_ptr<Entry> &&entry) const -> void {
     Node *node{this->start};
-
     for (unsigned char level{randomLevel()}; node != nullptr && level < node->level; --level) node = node->down;
 
     const std::string_view key{entry->getKey()};
