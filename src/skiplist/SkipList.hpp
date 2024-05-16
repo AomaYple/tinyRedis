@@ -2,15 +2,17 @@
 
 #include "Entry.hpp"
 
+#include <memory>
+
 class SkipList {
     struct Node {
-        std::variant<std::string_view, Entry> data;
         unsigned char level;
+        std::shared_ptr<Entry> entry;
         Node *next{}, *down{};
     };
 
 public:
-    constexpr SkipList() noexcept = default;
+    SkipList();
 
     SkipList(const SkipList &);
 
@@ -22,9 +24,11 @@ public:
 
     ~SkipList();
 
-    [[nodiscard]] auto find(std::string_view key) const -> Entry &;
+    [[nodiscard]] auto find(std::string_view key) const noexcept -> std::shared_ptr<Entry>;
 
-    auto insert(Entry &&entry) -> void;
+    auto insert(std::shared_ptr<Entry> &&entry) const -> void;
+
+    auto erase(std::string_view key) const noexcept -> void;
 
 private:
     [[nodiscard]] static auto random() -> double;
@@ -35,5 +39,7 @@ private:
 
     auto destroy() noexcept -> void;
 
-    Node *start{};
+    static constexpr unsigned char maxLevel{32};
+
+    Node *start;
 };
