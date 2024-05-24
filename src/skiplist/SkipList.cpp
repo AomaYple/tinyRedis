@@ -95,6 +95,21 @@ auto SkipList::erase(std::string_view key) const noexcept -> void {
     }
 }
 
+auto SkipList::serialize() const -> std::vector<std::byte> {
+    const Node *node{this->start};
+    while (node->down != nullptr) node = node->down;
+
+    std::vector<std::byte> serialization;
+    while (node != nullptr) {
+        const std::span<const std::byte> serializedEntry{node->entry->serialize()};
+        serialization.insert(serialization.cend(), serializedEntry.cbegin(), serializedEntry.cend());
+
+        node = node->next;
+    }
+
+    return serialization;
+}
+
 auto SkipList::random() -> double {
     static std::mt19937 generator{std::random_device{}()};
     static std::uniform_real_distribution<> distribution{0, 1};

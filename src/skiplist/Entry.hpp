@@ -14,7 +14,7 @@ public:
         std::string key;
         double score;
 
-        auto operator<(const SortedSetElement &) const noexcept -> bool;
+        [[nodiscard]] auto operator<(const SortedSetElement &) const noexcept -> bool;
     };
 
     explicit Entry(std::string &&key, std::string &&value = {}) noexcept;
@@ -27,34 +27,34 @@ public:
 
     explicit Entry(std::string &&key, std::set<SortedSetElement> &&value = {}) noexcept;
 
-    auto getKey() noexcept -> std::string &;
+    [[nodiscard]] auto getKey() noexcept -> std::string &;
 
-    auto getValueType() const noexcept -> unsigned char;
+    [[nodiscard]] auto getValueType() const noexcept -> unsigned char;
 
-    auto getStringValue() -> std::string &;
+    [[nodiscard]] auto getStringValue() -> std::string &;
 
-    auto getHashValue() -> std::unordered_map<std::string, std::string> &;
+    [[nodiscard]] auto getHashValue() -> std::unordered_map<std::string, std::string> &;
 
-    auto getListValue() -> std::deque<std::string> &;
+    [[nodiscard]] auto getListValue() -> std::deque<std::string> &;
 
-    auto getSetValue() -> std::unordered_set<std::string> &;
+    [[nodiscard]] auto getSetValue() -> std::unordered_set<std::string> &;
 
-    auto getSortedSetValue() -> std::set<SortedSetElement> &;
+    [[nodiscard]] auto getSortedSetValue() -> std::set<SortedSetElement> &;
 
-    auto serialize() const -> std::vector<std::byte>;
+    [[nodiscard]] auto serialize() const -> std::vector<std::byte>;
 
 private:
-    auto serializeKey() const -> std::vector<std::byte>;
+    [[nodiscard]] auto serializeKey() const -> std::vector<std::byte>;
 
-    auto serializeString() const -> std::vector<std::byte>;
+    [[nodiscard]] auto serializeString() const -> std::vector<std::byte>;
 
-    auto serializeHash() const -> std::vector<std::byte>;
+    [[nodiscard]] auto serializeHash() const -> std::vector<std::byte>;
 
-    auto serializeList() const -> std::vector<std::byte>;
+    [[nodiscard]] auto serializeList() const -> std::vector<std::byte>;
 
-    auto serializeSet() const -> std::vector<std::byte>;
+    [[nodiscard]] auto serializeSet() const -> std::vector<std::byte>;
 
-    auto serializeSortedSet() const -> std::vector<std::byte>;
+    [[nodiscard]] auto serializeSortedSet() const -> std::vector<std::byte>;
 
     std::string key;
     std::variant<std::string, std::unordered_map<std::string, std::string>, std::deque<std::string>,
