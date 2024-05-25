@@ -2,6 +2,7 @@
 
 #include <deque>
 #include <set>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -26,6 +27,8 @@ public:
     explicit Entry(std::string &&key, std::unordered_set<std::string> &&value = {}) noexcept;
 
     explicit Entry(std::string &&key, std::set<SortedSetElement> &&value = {}) noexcept;
+
+    explicit Entry(std::span<const std::byte> serializedEntry);
 
     [[nodiscard]] auto getKey() noexcept -> std::string &;
 
@@ -55,6 +58,16 @@ private:
     [[nodiscard]] auto serializeSet() const -> std::vector<std::byte>;
 
     [[nodiscard]] auto serializeSortedSet() const -> std::vector<std::byte>;
+
+    auto deserializeString(std::span<const std::byte> serializedValue) -> void;
+
+    auto deserializeHash(std::span<const std::byte> serializedValue) -> void;
+
+    auto deserializeList(std::span<const std::byte> serializedValue) -> void;
+
+    auto deserializeSet(std::span<const std::byte> serializedValue) -> void;
+
+    auto deserializeSortedSet(std::span<const std::byte> serializedValue) -> void;
 
     std::string key;
     std::variant<std::string, std::unordered_map<std::string, std::string>, std::deque<std::string>,

@@ -1,7 +1,5 @@
 #include "Entry.hpp"
 
-#include <span>
-
 template<>
 struct std::hash<Entry::SortedSetElement> {
     auto operator()(const Entry::SortedSetElement &other) const noexcept -> size_t { return hash<string>{}(other.key); }
@@ -24,6 +22,35 @@ Entry::Entry(std::string &&key, std::unordered_set<std::string> &&value) noexcep
 
 Entry::Entry(std::string &&key, std::set<SortedSetElement> &&value) noexcept :
     key{std::move(key)}, value{std::move(value)} {}
+
+Entry::Entry(std::span<const std::byte> serializedEntry) {
+    const auto valueType{static_cast<unsigned char>(serializedEntry.front())};
+    serializedEntry = serializedEntry.subspan(sizeof(valueType));
+
+    const auto keySize{*reinterpret_cast<const unsigned long *>(serializedEntry.data())};
+    serializedEntry = serializedEntry.subspan(sizeof(keySize));
+
+    this->key = std::string{reinterpret_cast<const char *>(serializedEntry.data()), keySize};
+    serializedEntry = serializedEntry.subspan(keySize);
+
+    switch (valueType) {
+        case 0:
+            this->deserializeString(serializedEntry);
+            break;
+        case 1:
+            this->deserializeHash(serializedEntry);
+            break;
+        case 2:
+            this->deserializeList(serializedEntry);
+            break;
+        case 3:
+            this->deserializeSet(serializedEntry);
+            break;
+        case 4:
+            this->deserializeSortedSet(serializedEntry);
+            break;
+    }
+}
 
 auto Entry::getKey() noexcept -> std::string & { return this->key; }
 
@@ -177,4 +204,82 @@ auto Entry::serializeSortedSet() const -> std::vector<std::byte> {
     }
 
     return serialization;
+}
+
+auto Entry::deserializeString(std::span<const std::byte> serializedValue) -> void {
+    this->value = std::string{reinterpret_cast<const char *>(serializedValue.data()), serializedValue.size()};
+}
+
+auto Entry::deserializeHash(std::span<const std::byte> serializedValue) -> void {
+    std::unordered_map<std::string, std::string> value;
+
+    while (!serializedValue.empty()) {
+        const auto elementKeySize{*reinterpret_cast<const unsigned long *>(serializedValue.data())};
+        serializedValue = serializedValue.subspan(sizeof(elementKeySize));
+
+        std::string elementKey{reinterpret_cast<const char *>(serializedValue.data()), elementKeySize};
+        serializedValue = serializedValue.subspan(elementKeySize);
+
+        const auto elementValueSize{*reinterpret_cast<const unsigned long *>(serializedValue.data())};
+        serializedValue = serializedValue.subspan(sizeof(elementValueSize));
+
+        std::string elementValue{reinterpret_cast<const char *>(serializedValue.data()), elementValueSize};
+        serializedValue = serializedValue.subspan(elementValueSize);
+
+        value.emplace(std::move(elementKey), std::move(elementValue));
+    }
+
+    this->value = std::move(value);
+}
+
+auto Entry::deserializeList(std::span<const std::byte> serializedValue) -> void {
+    std::deque<std::string> value;
+
+    while (!serializedValue.empty()) {
+        const auto elementSize{*reinterpret_cast<const unsigned long *>(serializedValue.data())};
+        serializedValue = serializedValue.subspan(sizeof(elementSize));
+
+        std::string element{reinterpret_cast<const char *>(serializedValue.data()), elementSize};
+        serializedValue = serializedValue.subspan(elementSize);
+
+        value.emplace_back(std::move(element));
+    }
+
+    this->value = std::move(value);
+}
+
+auto Entry::deserializeSet(std::span<const std::byte> serializedValue) -> void {
+    std::unordered_set<std::string> value;
+
+    while (!serializedValue.empty()) {
+        const auto elementSize{*reinterpret_cast<const unsigned long *>(serializedValue.data())};
+        serializedValue = serializedValue.subspan(sizeof(elementSize));
+
+        std::string element{reinterpret_cast<const char *>(serializedValue.data()), elementSize};
+        serializedValue = serializedValue.subspan(elementSize);
+
+        value.emplace(std::move(element));
+    }
+
+    this->value = std::move(value);
+}
+
+auto Entry::deserializeSortedSet(std::span<const std::byte> serializedValue) -> void {
+    std::set<SortedSetElement> value;
+
+    while (!serializedValue.empty()) {
+        const auto elementSize{*reinterpret_cast<const unsigned long *>(serializedValue.data())};
+        serializedValue = serializedValue.subspan(sizeof(elementSize));
+
+        const unsigned long elementKeySize{elementSize - sizeof(double)};
+        std::string elementKey{reinterpret_cast<const char *>(serializedValue.data()), elementKeySize};
+        serializedValue = serializedValue.subspan(elementKeySize);
+
+        const auto elementScore{*reinterpret_cast<const double *>(serializedValue.data())};
+        serializedValue = serializedValue.subspan(sizeof(elementScore));
+
+        value.emplace(SortedSetElement{std::move(elementKey), elementScore});
+    }
+
+    this->value = std::move(value);
 }
