@@ -3,22 +3,17 @@
 #include <random>
 #include <utility>
 
-SkipList::SkipList() :
-    start{[] {
-        Node *start{}, *previous{};
-        const auto entry{std::make_shared<Entry>(std::string{}, std::string{})};
-        for (unsigned char i{maxLevel}; i > 0; --i) {
-            Node *const node{
-                new Node{static_cast<unsigned char>(i - 1), entry}
-            };
-            if (previous != nullptr) {
-                previous->down = node;
-                previous = previous->down;
-            } else start = previous = node;
-        }
+SkipList::SkipList(std::span<const std::byte> serializedSkipList) {
+    while (!serializedSkipList.empty()) {
+        const auto entrySize{*reinterpret_cast<const unsigned long *>(serializedSkipList.data())};
+        serializedSkipList = serializedSkipList.subspan(sizeof(entrySize));
 
-        return start;
-    }()} {}
+        std::shared_ptr<Entry> entry{std::make_shared<Entry>(serializedSkipList.subspan(0, entrySize))};
+        serializedSkipList = serializedSkipList.subspan(entrySize);
+
+        this->insert(std::move(entry));
+    }
+}
 
 SkipList::SkipList(const SkipList &other) : start{other.copy()} {}
 
@@ -101,13 +96,29 @@ auto SkipList::serialize() const -> std::vector<std::byte> {
 
     std::vector<std::byte> serialization;
     while (node != nullptr) {
-        const std::span<const std::byte> serializedEntry{node->entry->serialize()};
+        const std::vector<std::byte> serializedEntry{node->entry->serialize()};
         serialization.insert(serialization.cend(), serializedEntry.cbegin(), serializedEntry.cend());
 
         node = node->next;
     }
 
     return serialization;
+}
+
+auto SkipList::initlialize() -> Node * {
+    Node *start{}, *previous{};
+    const auto entry{std::make_shared<Entry>(std::string{}, std::string{})};
+    for (unsigned char i{maxLevel}; i > 0; --i) {
+        Node *const node{
+            new Node{static_cast<unsigned char>(i - 1), entry}
+        };
+        if (previous != nullptr) {
+            previous->down = node;
+            previous = previous->down;
+        } else start = previous = node;
+    }
+
+    return start;
 }
 
 auto SkipList::random() -> double {

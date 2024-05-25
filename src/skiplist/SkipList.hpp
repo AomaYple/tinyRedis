@@ -12,7 +12,9 @@ class SkipList {
     };
 
 public:
-    SkipList();
+    SkipList() = default;
+
+    explicit SkipList(std::span<const std::byte> serializedSkipList);
 
     SkipList(const SkipList &);
 
@@ -33,6 +35,8 @@ public:
     [[nodiscard]] auto serialize() const -> std::vector<std::byte>;
 
 private:
+    [[nodiscard]] static auto initlialize() -> Node *;
+
     [[nodiscard]] static auto random() -> double;
 
     [[nodiscard]] static auto randomLevel() -> unsigned char;
@@ -43,5 +47,5 @@ private:
 
     static constexpr unsigned char maxLevel{32};
 
-    Node *start;
+    Node *start{initlialize()};
 };
