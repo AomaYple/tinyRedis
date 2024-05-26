@@ -27,3 +27,7 @@ target_compile_options(${SERVER} PRIVATE
 target_link_options(${SERVER} PRIVATE
         $<$<CONFIG:Debug>:-fsanitize=address>
 )
+
+target_link_libraries(${SERVER} PRIVATE
+        uring
+)

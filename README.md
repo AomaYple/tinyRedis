@@ -4,7 +4,7 @@
 
 ## 环境
 
-gcc，cmake，ninja
+gcc，cmake，ninja，liburing
 
 ## 编译
 
@@ -16,7 +16,9 @@ ninja
 
 ## 运行
 
+服务端
+
 ```shell
-cd build/tinyKV
-./tinyKV
+cd build/tinyRedisServer
+./tinyRedisServer
 ```
