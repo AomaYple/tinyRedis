@@ -31,3 +31,30 @@ target_link_options(${SERVER} PRIVATE
 target_link_libraries(${SERVER} PRIVATE
         uring
 )
+
+
+set(CLIENT "tinyRedisClient")
+
+add_executable(${CLIENT})
+
+set_target_properties(${CLIENT} PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        COMPILE_WARNING_AS_ERROR ON
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}/${CLIENT}
+)
+
+file(GLOB_RECURSE CLIENT_SOURCES CONFIGURE_DEPENDS src/client/*.cpp)
+target_sources(${CLIENT} PRIVATE
+        ${CLIENT_SOURCES}
+)
+
+target_compile_options(${CLIENT} PRIVATE
+        -Wall -Wextra -Wpedantic
+        $<$<CONFIG:Debug>:-Og -fsanitize=address>
+        $<$<CONFIG:Release>:-Ofast>
+)
+
+target_link_options(${CLIENT} PRIVATE
+        $<$<CONFIG:Debug>:-fsanitize=address>
+)
