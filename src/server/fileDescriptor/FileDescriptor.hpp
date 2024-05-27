@@ -10,9 +10,9 @@ public:
 
     FileDescriptor(FileDescriptor &&) = default;
 
-    auto operator=(const FileDescriptor &) = delete;
+    auto operator=(const FileDescriptor &) -> FileDescriptor & = delete;
 
-    auto operator=(FileDescriptor &&) = delete;
+    auto operator=(FileDescriptor &&) -> FileDescriptor & = delete;
 
     ~FileDescriptor() = default;
 

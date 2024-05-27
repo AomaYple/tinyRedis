@@ -1,5 +1,6 @@
 #include "Scheduler.hpp"
 
+#include "../database/Database.hpp"
 #include "../fileDescriptor/Client.hpp"
 #include "../log/Exception.hpp"
 #include "../ring/Completion.hpp"
@@ -169,7 +170,7 @@ auto Scheduler::receive(const Client &client, std::source_location sourceLocatio
             buffer.insert(buffer.cend(), receivedData.cbegin(), receivedData.cend());
 
             if (!(outcome.flags & IORING_CQE_F_SOCK_NONEMPTY)) {
-                std::vector<std::byte> response{buffer};
+                std::vector<std::byte> response{Database::query(buffer)};
                 buffer.clear();
 
                 this->submit(std::make_shared<Task>(this->send(client, std::move(response))));

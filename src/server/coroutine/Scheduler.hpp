@@ -16,9 +16,9 @@ public:
 
     Scheduler(const Scheduler &) = delete;
 
-    auto operator=(const Scheduler &) -> Scheduler & = delete;
-
     Scheduler(Scheduler &&) = delete;
+
+    auto operator=(const Scheduler &) -> Scheduler & = delete;
 
     auto operator=(Scheduler &&) -> Scheduler & = delete;
 

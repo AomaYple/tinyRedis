@@ -36,7 +36,7 @@ public:
 
     Task(Task &&) noexcept;
 
-    auto operator=(const Task &) = delete;
+    auto operator=(const Task &) -> Task & = delete;
 
     auto operator=(Task &&) noexcept -> Task &;
 

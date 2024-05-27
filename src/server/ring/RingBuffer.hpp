@@ -14,7 +14,7 @@ public:
 
     RingBuffer(RingBuffer &&) noexcept;
 
-    auto operator=(const RingBuffer &) = delete;
+    auto operator=(const RingBuffer &) -> RingBuffer & = delete;
 
     auto operator=(RingBuffer &&) noexcept -> RingBuffer &;
 

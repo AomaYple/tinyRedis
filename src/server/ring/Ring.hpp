@@ -19,7 +19,7 @@ public:
 
     Ring(Ring &&) noexcept;
 
-    auto operator=(const Ring &) = delete;
+    auto operator=(const Ring &) -> Ring & = delete;
 
     auto operator=(Ring &&) noexcept -> Ring &;
 

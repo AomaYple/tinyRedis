@@ -92,7 +92,7 @@ auto SkipList::erase(std::string_view key) const noexcept -> void {
 
 auto SkipList::serialize() const -> std::vector<std::byte> {
     const Node *node{this->start};
-    while (node->down != nullptr) node = node->down;
+    while (node != nullptr && node->down != nullptr) node = node->down;
 
     std::vector<std::byte> serialization;
     while (node != nullptr) {
