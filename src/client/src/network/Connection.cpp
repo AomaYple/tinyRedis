@@ -58,15 +58,26 @@ auto Connection::send(std::span<const std::byte> data, std::source_location sour
 }
 
 auto Connection::receive(std::source_location sourceLocation) const -> std::vector<std::byte> {
-    std::vector<std::byte> buffer{1024};
-    const long result{recv(this->fileDescriptor, buffer.data(), buffer.size(), 0)};
-    if (result > 0)
-        buffer.resize(result);
-    else {
-        std::string error{result == 0 ? "connection closed" : std::strerror(errno)};
-        throw Exception{
-            Log{Log::Level::fatal, std::move(error), sourceLocation}
-        };
+    std::vector<std::byte> buffer;
+
+    while (true) {
+        std::vector<std::byte> subBuffer{1024};
+        const long result{recv(this->fileDescriptor, subBuffer.data(), subBuffer.size(), MSG_DONTWAIT)};
+        if (result > 0) {
+            subBuffer.resize(result);
+            buffer.insert(buffer.cend(), subBuffer.cbegin(), subBuffer.cend());
+        } else {
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+                if (buffer.empty()) continue;
+
+                break;
+            }
+
+            std::string error{result == 0 ? "connection closed" : std::strerror(errno)};
+            throw Exception{
+                Log{Log::Level::fatal, std::move(error), sourceLocation}
+            };
+        }
     }
 
     return buffer;

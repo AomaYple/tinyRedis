@@ -22,10 +22,7 @@ auto main() -> int {
             std::getline(std::cin, buffer);
         }
 
-        if (buffer == "exit") {
-            std::println("bye!");
-            break;
-        }
+        if (buffer == "QUIT") break;
 
         const auto spanBuffer{std::as_bytes(std::span{buffer})};
         connection.send(spanBuffer);
