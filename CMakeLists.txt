@@ -11,5 +11,5 @@ add_compile_options(
         -Wall -Wextra -Wpedantic
 )
 
-add_subdirectory(src/server)
-add_subdirectory(src/client)
+add_subdirectory(server)
+add_subdirectory(client)
