@@ -1,9 +1,9 @@
-project(tinyRedisClient)
+project(client)
 
 add_executable(${PROJECT_NAME})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}
+        RUNTIME_OUTPUT_DIRECTORY ${PATH}/${PROJECT_NAME}
 )
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)

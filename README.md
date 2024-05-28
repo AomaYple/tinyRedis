@@ -19,13 +19,13 @@ ninja
 服务端
 
 ```shell
-cd build/src/server/tinyRedisServer
-./tinyRedisServer
+cd build/tinyRedis/server
+./server
 ```
 
 客户端
 
 ```shell
-cd build/src/client/tinyRedisClient
-./tinyRedisClient
+cd build/tinyRedis/client
+./client
 ```
