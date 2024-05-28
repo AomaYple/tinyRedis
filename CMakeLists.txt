@@ -2,59 +2,13 @@ cmake_minimum_required(VERSION 3.29.3)
 
 project(tinyRedis)
 
-set(SERVER "tinyRedisServer")
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 
-add_executable(${SERVER})
-
-set_target_properties(${SERVER} PROPERTIES
-        CXX_STANDARD 23
-        CXX_STANDARD_REQUIRED ON
-        COMPILE_WARNING_AS_ERROR ON
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}/${SERVER}
-)
-
-file(GLOB_RECURSE SERVER_SOURCES CONFIGURE_DEPENDS src/server/*.cpp)
-target_sources(${SERVER} PRIVATE
-        ${SERVER_SOURCES}
-)
-
-target_compile_options(${SERVER} PRIVATE
+add_compile_options(
         -Wall -Wextra -Wpedantic
-        $<$<CONFIG:Debug>:-Og -fsanitize=address>
-        $<$<CONFIG:Release>:-Ofast>
 )
 
-target_link_options(${SERVER} PRIVATE
-        $<$<CONFIG:Debug>:-fsanitize=address>
-)
-
-target_link_libraries(${SERVER} PRIVATE
-        uring
-)
-
-
-set(CLIENT "tinyRedisClient")
-
-add_executable(${CLIENT})
-
-set_target_properties(${CLIENT} PROPERTIES
-        CXX_STANDARD 23
-        CXX_STANDARD_REQUIRED ON
-        COMPILE_WARNING_AS_ERROR ON
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}/${CLIENT}
-)
-
-file(GLOB_RECURSE CLIENT_SOURCES CONFIGURE_DEPENDS src/client/*.cpp)
-target_sources(${CLIENT} PRIVATE
-        ${CLIENT_SOURCES}
-)
-
-target_compile_options(${CLIENT} PRIVATE
-        -Wall -Wextra -Wpedantic
-        $<$<CONFIG:Debug>:-Og -fsanitize=address>
-        $<$<CONFIG:Release>:-Ofast>
-)
-
-target_link_options(${CLIENT} PRIVATE
-        $<$<CONFIG:Debug>:-fsanitize=address>
-)
+add_subdirectory(src/server)
+add_subdirectory(src/client)

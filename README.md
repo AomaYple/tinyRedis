@@ -1,6 +1,6 @@
 ## 介绍
 
-本项目是linux上基于c++的轻量级Redis
+本项目是linux上基于c++和io_uring的轻量级Redis
 
 ## 环境
 
@@ -19,6 +19,13 @@ ninja
 服务端
 
 ```shell
-cd build/tinyRedisServer
+cd build/src/server/tinyRedisServer
 ./tinyRedisServer
+```
+
+客户端
+
+```shell
+cd build/src/client/tinyRedisClient
+./tinyRedisClient
 ```

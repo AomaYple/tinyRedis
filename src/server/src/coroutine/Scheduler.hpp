@@ -2,9 +2,8 @@
 
 #include "../fileDescriptor/Logger.hpp"
 #include "../fileDescriptor/Server.hpp"
+#include "../fileDescriptor/Timer.hpp"
 #include "../ring/RingBuffer.hpp"
-
-#include <unordered_map>
 
 class Client;
 
@@ -40,6 +39,8 @@ private:
 
     [[nodiscard]] auto accept(std::source_location sourceLocation = std::source_location::current()) -> Task;
 
+    [[nodiscard]] auto timing(std::source_location sourceLocation = std::source_location::current()) -> Task;
+
     [[nodiscard]] auto receive(const Client &client,
                                std::source_location sourceLocation = std::source_location::current()) -> Task;
 
@@ -60,6 +61,7 @@ private:
     const std::shared_ptr<Ring> ring{initializeRing()};
     const std::shared_ptr<Logger> logger{std::make_shared<Logger>(0)};
     const Server server{1};
+    Timer timer{2};
     std::unordered_map<int, Client> clients;
     RingBuffer ringBuffer{this->ring, static_cast<unsigned int>(std::bit_ceil(2048 / ringFileDescriptors.size())), 1024,
                           0};

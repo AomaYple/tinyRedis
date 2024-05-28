@@ -39,7 +39,7 @@ Scheduler::Scheduler() {
 
     this->ring->registerSparseFileDescriptor(Ring::getFileDescriptorLimit());
 
-    const std::array<int, 2> fileDescriptors{Logger::create(), Server::create()};
+    const std::array<int, 3> fileDescriptors{Logger::create(), Server::create(), Timer::create()};
     this->ring->allocateFileDescriptorRange(fileDescriptors.size(),
                                             Ring::getFileDescriptorLimit() - fileDescriptors.size());
     this->ring->updateFileDescriptors(0, fileDescriptors);
@@ -66,6 +66,7 @@ Scheduler::~Scheduler() {
 
 auto Scheduler::run() -> void {
     this->submit(std::make_shared<Task>(this->accept()));
+    this->submit(std::make_shared<Task>(this->timing()));
 
     while (switcher.test(std::memory_order::relaxed)) {
         if (this->logger->writable()) this->submit(std::make_shared<Task>(this->write()));
@@ -159,6 +160,18 @@ auto Scheduler::accept(std::source_location sourceLocation) -> Task {
     }
 }
 
+auto Scheduler::timing(std::source_location sourceLocation) -> Task {
+    const Outcome outcome{co_await this->timer.timing()};
+    if (outcome.result == sizeof(unsigned long)) this->submit(std::make_shared<Task>(this->timing()));
+    else {
+        throw Exception{
+            Log{Log::Level::error, std::strerror(std::abs(outcome.result)), sourceLocation}
+        };
+    }
+
+    this->eraseCurrentTask();
+}
+
 auto Scheduler::receive(const Client &client, std::source_location sourceLocation) -> Task {
     std::vector<std::byte> buffer;
 
@@ -176,7 +189,8 @@ auto Scheduler::receive(const Client &client, std::source_location sourceLocatio
                 this->submit(std::make_shared<Task>(this->send(client, std::move(response))));
             }
         } else {
-            this->logger->push(Log{Log::Level::warn, std::strerror(std::abs(outcome.result)), sourceLocation});
+            std::string error{outcome.result == 0 ? "connection closed" : std::strerror(std::abs(outcome.result))};
+            this->logger->push(Log{Log::Level::warn, std::move(error), sourceLocation});
 
             this->submit(std::make_shared<Task>(this->close(client.getFileDescriptor())));
 
@@ -191,7 +205,8 @@ auto Scheduler::send(const Client &client, std::vector<std::byte> &&data, std::s
     const std::vector<std::byte> response{std::move(data)};
     const Outcome outcome{co_await client.send(response)};
     if (outcome.result <= 0) {
-        this->logger->push(Log{Log::Level::warn, std::strerror(std::abs(outcome.result)), sourceLocation});
+        std::string error{outcome.result == 0 ? "connection closed" : std::strerror(std::abs(outcome.result))};
+        this->logger->push(Log{Log::Level::warn, std::move(error), sourceLocation});
 
         this->submit(std::make_shared<Task>(this->close(client.getFileDescriptor())));
     }
@@ -203,6 +218,7 @@ auto Scheduler::close(int fileDescriptor, std::source_location sourceLocation) -
     Outcome outcome;
     if (fileDescriptor == this->logger->getFileDescriptor()) outcome = co_await this->logger->close();
     else if (fileDescriptor == this->server.getFileDescriptor()) outcome = co_await this->server.close();
+    else if (fileDescriptor == this->timer.getFileDescriptor()) outcome = co_await this->timer.close();
     else [[likely]] {
         outcome = co_await this->clients.at(fileDescriptor).close();
         this->clients.erase(fileDescriptor);
@@ -217,6 +233,7 @@ auto Scheduler::close(int fileDescriptor, std::source_location sourceLocation) -
 auto Scheduler::closeAll() -> void {
     for (const Client &client : this->clients | std::views::values)
         this->submit(std::make_shared<Task>(this->close(client.getFileDescriptor())));
+    this->submit(std::make_shared<Task>(this->close(this->timer.getFileDescriptor())));
     this->submit(std::make_shared<Task>(this->close(this->server.getFileDescriptor())));
     this->submit(std::make_shared<Task>(this->close(this->logger->getFileDescriptor())));
 
