@@ -1,5 +1,6 @@
 #include "log/Exception.hpp"
 #include "network/Connection.hpp"
+#include "parse/parse.hpp"
 
 #include <csignal>
 #include <cstring>
@@ -9,13 +10,15 @@
 auto shieldSignal(std::source_location sourceLocation = std::source_location::current()) -> void;
 
 auto main() -> int {
-    const Connection connection;
-    const std::pair<std::string, std::string> peerName{connection.getPeerName()};
-    const std::string serverInfo{std::format("tinyRedis {}:{}> ", peerName.first, peerName.second)};
-
     shieldSignal();
 
+    const Connection connection;
+    const std::pair<std::string, std::string> peerName{connection.getPeerName()};
+
+    unsigned char id{};
     while (true) {
+        const std::string serverInfo{std::format("tinyRedis {}:{}[{}]> ", peerName.first, peerName.second, id)};
+
         std::string buffer;
         while (buffer.empty()) {
             std::print("{}", serverInfo);
@@ -24,12 +27,16 @@ auto main() -> int {
 
         if (buffer == "QUIT") break;
 
+        buffer.insert(buffer.cbegin(), static_cast<char>(id));
+        buffer.insert(buffer.cbegin(), ' ');
+
         const auto spanBuffer{std::as_bytes(std::span{buffer})};
         connection.send(spanBuffer);
 
-        const std::vector<std::byte> receivedData{connection.receive()};
-        const std::string_view response{reinterpret_cast<const char *>(receivedData.data()), receivedData.size()};
-        std::println("{}", response);
+        const std::pair<unsigned char, std::string> response{parse::parse(connection.receive())};
+
+        id = response.first;
+        std::println("{}", response.second);
     }
 
     return 0;
