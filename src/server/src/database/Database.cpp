@@ -6,8 +6,35 @@
 #include <fstream>
 #include <mutex>
 
-auto Database::query(std::span<const std::byte> statement) -> std::vector<std::byte> {
-    return std::vector<std::byte>{statement.cbegin(), statement.cend()};
+auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> {
+    const auto id{static_cast<unsigned char>(data.front())};
+    data = data.subspan(2);
+
+    const std::string_view response{reinterpret_cast<const char *>(data.data()), data.size()};
+    const unsigned long result{response.find(' ')};
+
+    const std::string_view command{response.substr(0, result)}, statement{response.substr(result + 1)};
+    if (command == "SELECT") return select(id, statement);
+
+    return std::vector<std::byte>{data.cbegin(), data.cend()};
+}
+
+auto Database::select(unsigned char id, std::string_view statement) -> std::vector<std::byte> {
+    const std::string stringNewId{statement.front()};
+    const auto newId{static_cast<unsigned char>(std::stoi(stringNewId))};
+
+    std::string result;
+    if (newId < databases.size()) {
+        result += static_cast<char>(newId);
+        result += " OK";
+    } else {
+        result += static_cast<char>(id);
+        result += " DATABASE NOT FOUND";
+    }
+
+    const auto spanResult{std::as_bytes(std::span{result})};
+
+    return std::vector<std::byte>{spanResult.cbegin(), spanResult.cend()};
 }
 
 Database::Database(Database &&other) noexcept {

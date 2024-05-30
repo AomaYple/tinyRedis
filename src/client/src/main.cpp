@@ -27,8 +27,8 @@ auto main() -> int {
 
         if (buffer == "QUIT") break;
 
-        buffer.insert(buffer.cbegin(), static_cast<char>(id));
         buffer.insert(buffer.cbegin(), ' ');
+        buffer.insert(buffer.cbegin(), static_cast<char>(id));
 
         const auto spanBuffer{std::as_bytes(std::span{buffer})};
         connection.send(spanBuffer);

@@ -7,7 +7,9 @@
 
 class Database {
 public:
-    [[nodiscard]] static auto query(std::span<const std::byte> statement) -> std::vector<std::byte>;
+    [[nodiscard]] static auto query(std::span<const std::byte> data) -> std::vector<std::byte>;
+
+    static auto select(unsigned char id, std::string_view statement) -> std::vector<std::byte>;
 
     Database(const Database &) = delete;
 
