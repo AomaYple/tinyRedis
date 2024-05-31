@@ -4,7 +4,7 @@ auto main() -> int {
     Scheduler::registerSignal();
 
     std::vector<std::jthread> workers{std::jthread::hardware_concurrency() - 1};
-    for (std::jthread &worker : workers) {
+    for (auto &worker : workers) {
         worker = std::jthread{[] {
             Scheduler scheduler;
             scheduler.run();

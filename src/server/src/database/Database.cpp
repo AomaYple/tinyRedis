@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <mutex>
+#include <ranges>
 
 auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> {
     const auto id{*reinterpret_cast<const unsigned long *>(data.data())};
@@ -14,7 +15,9 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
     const unsigned long result{response.find(' ')};
 
     const std::string_view command{response.substr(0, result)}, statement{response.substr(result + 1)};
+    Database &database{databases.at(id)};
     if (command == "SELECT") return select(statement);
+    else if (command == "EXISTS") return database.exists(statement);
 
     return {data.cbegin(), data.cend()};
 }
@@ -30,6 +33,36 @@ auto Database::select(std::string_view statement) -> std::vector<std::byte> {
 
     response.emplace_back(std::byte{'O'});
     response.emplace_back(std::byte{'K'});
+
+    return response;
+}
+
+auto Database::exists(std::string_view statement) -> std::vector<std::byte> {
+    unsigned long count{};
+
+    {
+        const std::shared_lock sharedLock{this->lock};
+        for (const auto &view : statement | std::views::split(' ')) {
+            const std::string_view key{view};
+            if (this->skipList.find(key) != nullptr) ++count;
+        }
+    }
+
+    std::vector<std::byte> response{sizeof(this->id)};
+    *reinterpret_cast<decltype(this->id) *>(response.data()) = this->id;
+
+    response.emplace_back(std::byte{'('});
+    response.emplace_back(std::byte{'i'});
+    response.emplace_back(std::byte{'n'});
+    response.emplace_back(std::byte{'t'});
+    response.emplace_back(std::byte{'e'});
+    response.emplace_back(std::byte{'g'});
+    response.emplace_back(std::byte{'e'});
+    response.emplace_back(std::byte{'r'});
+    response.emplace_back(std::byte{')'});
+    response.emplace_back(std::byte{' '});
+
+    for (const auto element : std::to_string(count)) response.emplace_back(static_cast<std::byte>(element));
 
     return response;
 }
@@ -63,11 +96,14 @@ auto Database::initialize() -> std::unordered_map<unsigned long, Database> {
     std::filesystem::create_directories(filepathPrefix);
 
     std::unordered_map<unsigned long, Database> databases;
-    for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator{filepathPrefix}) {
+    for (const auto &entry : std::filesystem::directory_iterator{filepathPrefix}) {
         const auto filename{entry.path().filename().string()};
         const auto id{std::stoul(filename.substr(0, filename.size() - 3))};
         databases.emplace(id, Database{id});
     }
+
+    for (unsigned char i{}; i < 16; ++i)
+        if (!databases.contains(i)) databases.emplace(i, Database{i});
 
     return databases;
 }

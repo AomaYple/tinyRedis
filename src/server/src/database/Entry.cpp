@@ -30,7 +30,7 @@ Entry::Entry(std::span<const std::byte> serializedEntry) {
     const auto keySize{*reinterpret_cast<const unsigned long *>(serializedEntry.data())};
     serializedEntry = serializedEntry.subspan(sizeof(keySize));
 
-    this->key = std::string{reinterpret_cast<const char *>(serializedEntry.data()), keySize};
+    this->key = {reinterpret_cast<const char *>(serializedEntry.data()), keySize};
     serializedEntry = serializedEntry.subspan(keySize);
 
     switch (valueType) {
@@ -126,10 +126,10 @@ auto Entry::serializeHash() const -> std::vector<std::byte> {
     std::vector<std::byte> serialization;
     const auto &value{std::get<std::unordered_map<std::string, std::string>>(this->value)};
 
-    for (const std::pair<const std::string, std::string> &element : value) {
+    for (const auto &element : value) {
         const unsigned long keySize{element.first.size()};
         std::vector<std::byte> serializedElement{sizeof(keySize)};
-        *reinterpret_cast<unsigned long long *>(serializedElement.data()) = keySize;
+        *reinterpret_cast<unsigned long *>(serializedElement.data()) = keySize;
 
         const auto spanKey{std::as_bytes(std::span{element.first})};
         serializedElement.insert(serializedElement.cend(), spanKey.cbegin(), spanKey.cend());
@@ -188,7 +188,7 @@ auto Entry::serializeSortedSet() const -> std::vector<std::byte> {
     std::vector<std::byte> serialization;
     const auto &value{std::get<std::set<SortedSetElement>>(this->value)};
 
-    for (const SortedSetElement &element : value) {
+    for (const auto &element : value) {
         const unsigned long size{element.key.size() + sizeof(element.score)};
         std::vector<std::byte> serializedElement{sizeof(size)};
         *reinterpret_cast<unsigned long *>(serializedElement.data()) = size;
@@ -197,8 +197,8 @@ auto Entry::serializeSortedSet() const -> std::vector<std::byte> {
         serializedElement.insert(serializedElement.cend(), spanKey.cbegin(), spanKey.cend());
 
         serializedElement.resize(serializedElement.size() + sizeof(element.score));
-        *reinterpret_cast<double *>(serializedElement.data() + serializedElement.size() - sizeof(element.score)) =
-            element.score;
+        *reinterpret_cast<decltype(element.score) *>(serializedElement.data() + serializedElement.size() -
+                                                     sizeof(element.score)) = element.score;
 
         serialization.insert(serialization.cend(), serializedElement.cbegin(), serializedElement.cend());
     }

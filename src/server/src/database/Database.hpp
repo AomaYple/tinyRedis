@@ -11,6 +11,8 @@ public:
 
     static auto select(std::string_view statement) -> std::vector<std::byte>;
 
+    [[nodiscard]] auto exists(std::string_view statement) -> std::vector<std::byte>;
+
     Database(const Database &) = delete;
 
     Database(Database &&) noexcept;

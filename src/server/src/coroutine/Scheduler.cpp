@@ -231,7 +231,7 @@ auto Scheduler::close(int fileDescriptor, std::source_location sourceLocation) -
 }
 
 auto Scheduler::closeAll() -> void {
-    for (const Client &client : this->clients | std::views::values)
+    for (const auto &client : this->clients | std::views::values)
         this->submit(std::make_shared<Task>(this->close(client.getFileDescriptor())));
     this->submit(std::make_shared<Task>(this->close(this->timer.getFileDescriptor())));
     this->submit(std::make_shared<Task>(this->close(this->server.getFileDescriptor())));

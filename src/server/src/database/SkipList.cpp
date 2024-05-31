@@ -86,7 +86,9 @@ auto SkipList::erase(std::string_view key) const noexcept -> void {
             const Node *const deleteNode{next};
             node->next = next->next;
             delete deleteNode;
-        } else node = down;
+        } else [[likely]] {
+            node = down;
+        }
     }
 }
 
