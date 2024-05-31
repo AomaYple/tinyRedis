@@ -1,6 +1,5 @@
 #include "log/Exception.hpp"
 #include "network/Connection.hpp"
-#include "parse/parse.hpp"
 
 #include <csignal>
 #include <cstring>
@@ -13,11 +12,13 @@ auto main() -> int {
     shieldSignal();
 
     const Connection connection;
-    const std::pair<std::string, std::string> peerName{connection.getPeerName()};
+    const std::pair peerName{connection.getPeerName()};
 
-    unsigned char id{};
+    unsigned long id{};
     while (true) {
-        const std::string serverInfo{std::format("tinyRedis {}:{}[{}]> ", peerName.first, peerName.second, id)};
+        const std::string serverInfo{std::format("tinyRedis {}:{}{}{}{}> ", peerName.first, peerName.second,
+                                                 id == 0 ? "" : "[", id == 0 ? "" : std::to_string(id),
+                                                 id == 0 ? "" : "]")};
 
         std::string buffer;
         while (buffer.empty()) {
@@ -27,16 +28,18 @@ auto main() -> int {
 
         if (buffer == "QUIT") break;
 
-        buffer.insert(buffer.cbegin(), ' ');
-        buffer.insert(buffer.cbegin(), static_cast<char>(id));
+        buffer.insert(buffer.cbegin(), sizeof(id), 0);
+        *reinterpret_cast<decltype(id) *>(buffer.data()) = id;
 
         const auto spanBuffer{std::as_bytes(std::span{buffer})};
         connection.send(spanBuffer);
 
-        const std::pair<unsigned char, std::string> response{parse::parse(connection.receive())};
+        const std::vector receivedData{connection.receive()};
+        id = *reinterpret_cast<const decltype(id) *>(receivedData.data());
 
-        id = response.first;
-        std::println("{}", response.second);
+        const std::string_view response{reinterpret_cast<const char *>(receivedData.data() + sizeof(id)),
+                                        receivedData.size() - sizeof(id)};
+        std::println("{}", response);
     }
 
     return 0;

@@ -93,7 +93,7 @@ auto Entry::serialize() const -> std::vector<std::byte> {
             break;
     }
 
-    const std::vector<std::byte> serializedKey{this->serializeKey()};
+    const std::vector serializedKey{this->serializeKey()};
     const unsigned long size{sizeof(valueType) + serializedKey.size() + serializedValue.size()};
     std::vector<std::byte> serialization{sizeof(size)};
     *reinterpret_cast<unsigned long *>(serialization.data()) = size;
@@ -119,7 +119,7 @@ auto Entry::serializeKey() const -> std::vector<std::byte> {
 auto Entry::serializeString() const -> std::vector<std::byte> {
     const auto spanValue{std::as_bytes(std::span{std::get<std::string>(this->value)})};
 
-    return std::vector<std::byte>{spanValue.cbegin(), spanValue.cend()};
+    return {spanValue.cbegin(), spanValue.cend()};
 }
 
 auto Entry::serializeHash() const -> std::vector<std::byte> {

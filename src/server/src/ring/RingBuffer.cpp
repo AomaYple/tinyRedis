@@ -7,7 +7,7 @@
 RingBuffer::RingBuffer(std::shared_ptr<Ring> ring, unsigned int entries, unsigned int size, int id) :
     ring{std::move(ring)}, handle{this->ring->setupRingBuffer(entries, id)},
     buffers{entries, std::vector<std::byte>{size}}, id{id}, mask{io_uring_buf_ring_mask(entries)} {
-    for (unsigned short i{}; i < static_cast<unsigned short>(this->buffers.size()); ++i) this->add(i);
+    for (unsigned short i{}; i < static_cast<decltype(i)>(this->buffers.size()); ++i) this->add(i);
 
     this->ring->advance(this->getHandle(), 0, std::exchange(this->offset, 0));
 }
@@ -43,7 +43,7 @@ auto RingBuffer::readFromBuffer(unsigned short index, unsigned int size) -> std:
     buffer.resize(size * 2);
     this->add(index);
 
-    return std::span<const std::byte>{buffer.cbegin(), buffer.cbegin() + size};
+    return {buffer.cbegin(), buffer.cbegin() + size};
 }
 
 auto RingBuffer::getAddedBufferCount() noexcept -> int { return std::exchange(this->offset, 0); }

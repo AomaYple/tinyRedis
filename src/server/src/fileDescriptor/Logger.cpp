@@ -25,7 +25,7 @@ auto Logger::writable() const noexcept -> bool { return !this->logs.empty() && t
 
 auto Logger::write() -> Awaiter {
     while (!this->logs.empty()) {
-        const std::vector<std::byte> byteLog{this->logs.front().toByte()};
+        const std::vector byteLog{this->logs.front().toByte()};
         this->data.insert(this->data.cend(), byteLog.cbegin(), byteLog.cend());
         this->logs.pop();
     }

@@ -8,7 +8,7 @@ SkipList::SkipList(std::span<const std::byte> serializedSkipList) {
         const auto entrySize{*reinterpret_cast<const unsigned long *>(serializedSkipList.data())};
         serializedSkipList = serializedSkipList.subspan(sizeof(entrySize));
 
-        std::shared_ptr<Entry> entry{std::make_shared<Entry>(serializedSkipList.subspan(0, entrySize))};
+        auto entry{std::make_shared<Entry>(serializedSkipList.subspan(0, entrySize))};
         serializedSkipList = serializedSkipList.subspan(entrySize);
 
         this->insert(std::move(entry));
@@ -96,7 +96,7 @@ auto SkipList::serialize() const -> std::vector<std::byte> {
 
     std::vector<std::byte> serialization;
     while (node != nullptr) {
-        const std::vector<std::byte> serializedEntry{node->entry->serialize()};
+        const std::vector serializedEntry{node->entry->serialize()};
         serialization.insert(serialization.cend(), serializedEntry.cbegin(), serializedEntry.cend());
 
         node = node->next;

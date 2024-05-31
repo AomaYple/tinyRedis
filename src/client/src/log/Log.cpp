@@ -20,5 +20,5 @@ auto Log::toByte() const -> std::vector<std::byte> {
     const auto stringLog{this->toString()};
     const auto spanLog{std::as_bytes(std::span{stringLog})};
 
-    return std::vector<std::byte>{spanLog.cbegin(), spanLog.cend()};
+    return {spanLog.cbegin(), spanLog.cend()};
 }
