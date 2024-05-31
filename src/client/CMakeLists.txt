@@ -1,4 +1,4 @@
-project(client)
+project(tinyRedisClient)
 
 add_executable(${PROJECT_NAME})
 

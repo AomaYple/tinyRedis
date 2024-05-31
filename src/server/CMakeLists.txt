@@ -1,4 +1,4 @@
-project(server)
+project(tinyRedisServer)
 
 add_executable(${PROJECT_NAME})
 
