@@ -30,7 +30,7 @@ public:
 
     auto insert(std::shared_ptr<Entry> &&entry) const -> void;
 
-    [[nodiscard]] auto erase(std::string_view key) const noexcept -> bool;
+    auto erase(std::string_view key) const noexcept -> bool;
 
     [[nodiscard]] auto serialize() const -> std::vector<std::byte>;
 

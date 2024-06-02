@@ -70,6 +70,7 @@ auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std:
         statement = {};
     } else if (command == "DEL") commandType = Command::del;
     else if (command == "DUMP") commandType = Command::dump;
+    else if (command == "MOVE") commandType = Command::move;
     else if (command == "EXISTS") commandType = Command::exists;
     else if (command == "GET") commandType = Command::get;
 

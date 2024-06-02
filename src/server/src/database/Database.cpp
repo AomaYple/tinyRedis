@@ -24,6 +24,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return select(id);
         case Command::del:
             return databases.at(id).del(statement);
+        case Command::move:
+            return databases.at(id).move(statement);
         case Command::dump:
             return databases.at(id).dump(statement);
         case Command::exists:
@@ -58,6 +60,32 @@ auto Database::del(std::string_view keys) -> std::vector<std::byte> {
     const std::string stringCount{std::to_string(count)};
     const auto spanCount{std::as_bytes(std::span{stringCount})};
     buffer.insert(buffer.cend(), spanCount.cbegin(), spanCount.cend());
+
+    return buffer;
+}
+
+auto Database::move(std::string_view statment) -> std::vector<std::byte> {
+    const unsigned long result{statment.find(' ')};
+    const std::string_view key{statment.substr(0, result)};
+    Database &target{databases.at(std::stoul(std::string{statment.substr(result + 1)}))};
+
+    bool success{};
+    {
+        const std::scoped_lock scopedLock{this->lock, target.lock};
+
+        std::shared_ptr entry{this->skipList.find(key)};
+        const std::shared_ptr targetEntry{target.skipList.find(key)};
+        if (entry != nullptr && targetEntry == nullptr) {
+            this->skipList.erase(key);
+            target.skipList.insert(std::move(entry));
+
+            success = true;
+        }
+    }
+
+    const auto spanInteger{std::as_bytes(std::span{integer})};
+    std::vector<std::byte> buffer{spanInteger.cbegin(), spanInteger.cend()};
+    buffer.emplace_back(success ? std::byte{'1'} : std::byte{'0'});
 
     return buffer;
 }
