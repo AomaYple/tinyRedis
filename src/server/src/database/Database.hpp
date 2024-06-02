@@ -11,11 +11,11 @@ public:
 
     static auto select(unsigned long id) -> std::vector<std::byte>;
 
+    auto del(std::string_view keys) -> std::vector<std::byte>;
+
     [[nodiscard]] auto exists(std::string_view keys) -> std::vector<std::byte>;
 
     [[nodiscard]] auto get(std::string_view key) -> std::vector<std::byte>;
-
-    auto del(std::string_view keys) -> std::vector<std::byte>;
 
     Database(const Database &) = delete;
 

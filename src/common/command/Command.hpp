@@ -1,3 +1,8 @@
 #pragma once
 
-enum class Command : unsigned char { select, exists, get, del};
+enum class Command : unsigned char {
+    select,
+    del,
+    exists,
+    get,
+};

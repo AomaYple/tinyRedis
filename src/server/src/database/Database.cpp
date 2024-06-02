@@ -21,12 +21,12 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
     switch (command) {
         case Command::select:
             return select(id);
+        case Command::del:
+            return databases.at(id).del(statement);
         case Command::exists:
             return databases.at(id).exists(statement);
         case Command::get:
             return databases.at(id).get(statement);
-        case Command::del:
-            return databases.at(id).del(statement);
     }
 
     return {data.cbegin(), data.cend()};
@@ -36,6 +36,27 @@ auto Database::select(unsigned long id) -> std::vector<std::byte> {
     if (!databases.contains(id)) databases.emplace(id, Database{id});
 
     return {std::byte{'O'}, std::byte{'K'}};
+}
+
+auto Database::del(std::string_view keys) -> std::vector<std::byte> {
+    unsigned long count{};
+
+    {
+        const std::lock_guard lockGuard{this->lock};
+        for (const auto &view : keys | std::views::split(' '))
+            if (this->skipList.erase(std::string_view{view})) ++count;
+    }
+
+    std::vector<std::byte> buffer;
+
+    const auto spanInteger{std::as_bytes(std::span{integer})};
+    buffer.insert(buffer.cend(), spanInteger.cbegin(), spanInteger.cend());
+
+    const std::string stringCount{std::to_string(count)};
+    const auto spanCount{std::as_bytes(std::span{stringCount})};
+    buffer.insert(buffer.cend(), spanCount.cbegin(), spanCount.cend());
+
+    return buffer;
 }
 
 auto Database::exists(std::string_view keys) -> std::vector<std::byte> {
@@ -79,27 +100,6 @@ auto Database::get(std::string_view key) -> std::vector<std::byte> {
 
     const auto spanResponse{std::as_bytes(std::span{response})};
     buffer.insert(buffer.cend(), spanResponse.cbegin(), spanResponse.cend());
-
-    return buffer;
-}
-
-auto Database::del(std::string_view keys) -> std::vector<std::byte> {
-    unsigned long count{};
-
-    {
-        const std::lock_guard lockGuard{this->lock};
-        for (const auto &view : keys | std::views::split(' '))
-            if (this->skipList.erase(std::string_view{view})) ++count;
-    }
-
-    std::vector<std::byte> buffer;
-
-    const auto spanInteger{std::as_bytes(std::span{integer})};
-    buffer.insert(buffer.cend(), spanInteger.cbegin(), spanInteger.cend());
-
-    const std::string stringCount{std::to_string(count)};
-    const auto spanCount{std::as_bytes(std::span{stringCount})};
-    buffer.insert(buffer.cend(), spanCount.cbegin(), spanCount.cend());
 
     return buffer;
 }
