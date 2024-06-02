@@ -6,7 +6,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${PATH}/${PROJECT_NAME}
 )
 
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp ../common/*.cpp)
 target_sources(${PROJECT_NAME} PRIVATE
         ${SOURCES}
 )

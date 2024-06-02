@@ -1,6 +1,7 @@
 #include "Database.hpp"
 
-#include "../log/Exception.hpp"
+#include "../../../common/command/Command.hpp"
+#include "../../../common/log/Exception.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -8,63 +9,74 @@
 #include <ranges>
 
 auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> {
+    const auto command{static_cast<Command>(data.front())};
+    data = data.subspan(sizeof(command));
+
     const auto id{*reinterpret_cast<const unsigned long *>(data.data())};
     data = data.subspan(sizeof(id));
 
-    const std::string_view response{reinterpret_cast<const char *>(data.data()), data.size()};
-    const unsigned long result{response.find(' ')};
-
-    const std::string_view command{response.substr(0, result)}, statement{response.substr(result + 1)};
-    Database &database{databases.at(id)};
-    if (command == "SELECT") return select(statement);
-    else if (command == "EXISTS") return database.exists(statement);
+    const std::string_view statement{reinterpret_cast<const char *>(data.data()), data.size()};
+    switch (command) {
+        case Command::select:
+            return select(id);
+        case Command::exists:
+            return databases.at(id).exists(statement);
+        case Command::get:
+            return databases.at(id).get(statement);
+    }
 
     return {data.cbegin(), data.cend()};
 }
 
-auto Database::select(std::string_view statement) -> std::vector<std::byte> {
-    const std::string stringNewId{statement};
-    const auto newId{std::stoul(stringNewId)};
+auto Database::select(unsigned long id) -> std::vector<std::byte> {
+    if (!databases.contains(id)) databases.emplace(id, Database{id});
 
-    if (!databases.contains(newId)) databases.emplace(newId, Database{newId});
-
-    std::vector<std::byte> response{sizeof(newId)};
-    *reinterpret_cast<unsigned long *>(response.data()) = newId;
-
-    response.emplace_back(std::byte{'O'});
-    response.emplace_back(std::byte{'K'});
-
-    return response;
+    return {std::byte{'O'}, std::byte{'K'}};
 }
 
-auto Database::exists(std::string_view statement) -> std::vector<std::byte> {
+auto Database::exists(std::string_view keys) -> std::vector<std::byte> {
     unsigned long count{};
 
     {
         const std::shared_lock sharedLock{this->lock};
-        for (const auto &view : statement | std::views::split(' ')) {
+        for (const auto &view : keys | std::views::split(' ')) {
             const std::string_view key{view};
             if (this->skipList.find(key) != nullptr) ++count;
         }
     }
 
-    std::vector<std::byte> response{sizeof(this->id)};
-    *reinterpret_cast<decltype(this->id) *>(response.data()) = this->id;
+    std::vector<std::byte> buffer;
 
-    response.emplace_back(std::byte{'('});
-    response.emplace_back(std::byte{'i'});
-    response.emplace_back(std::byte{'n'});
-    response.emplace_back(std::byte{'t'});
-    response.emplace_back(std::byte{'e'});
-    response.emplace_back(std::byte{'g'});
-    response.emplace_back(std::byte{'e'});
-    response.emplace_back(std::byte{'r'});
-    response.emplace_back(std::byte{')'});
-    response.emplace_back(std::byte{' '});
+    static constexpr std::string_view integer{"(integer) "};
+    const auto spanInteger{std::as_bytes(std::span{integer})};
+    buffer.insert(buffer.cend(), spanInteger.cbegin(), spanInteger.cend());
 
-    for (const auto element : std::to_string(count)) response.emplace_back(static_cast<std::byte>(element));
+    const std::string stringCount{std::to_string(count)};
+    const auto spanCount{std::as_bytes(std::span{stringCount})};
+    buffer.insert(buffer.cend(), spanCount.cbegin(), spanCount.cend());
 
-    return response;
+    return buffer;
+}
+
+auto Database::get(std::string_view key) -> std::vector<std::byte> {
+    std::vector<std::byte> buffer;
+
+    std::string response;
+    {
+        const std::shared_lock sharedLock{this->lock};
+
+        const std::shared_ptr entry{this->skipList.find(key)};
+        if (entry != nullptr) {
+            const Entry::Type type{entry->getType()};
+            if (type == Entry::Type::string) response = '"' + entry->getString() + '"';
+            else response = "(error) ERR Operation against a key holding the wrong kind of value";
+        } else response = "(nil)";
+    }
+
+    const auto spanResponse{std::as_bytes(std::span{response})};
+    buffer.insert(buffer.cend(), spanResponse.cbegin(), spanResponse.cend());
+
+    return buffer;
 }
 
 Database::Database(Database &&other) noexcept {

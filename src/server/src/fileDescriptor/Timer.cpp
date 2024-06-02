@@ -1,6 +1,6 @@
 #include "Timer.hpp"
 
-#include "../log/Exception.hpp"
+#include "../../../common/log/Exception.hpp"
 
 #include <cstring>
 #include <linux/io_uring.h>
@@ -27,20 +27,20 @@ auto Timer::timing() noexcept -> Awaiter {
     return awaiter;
 }
 
-auto Timer::add(int fileDescriptor, unsigned long seconds) -> void {
-    const auto level{seconds / (this->wheel.size() - 1)};
+auto Timer::add(int fileDescriptor, std::chrono::seconds seconds) -> void {
+    const unsigned long level{(seconds / (this->wheel.size() - 1)).count()};
     const auto point{static_cast<decltype(this->now)>(seconds % (this->wheel.size() - 1))};
 
-    this->wheel[point].emplace(fileDescriptor, level);
+    this->wheel[point.count()].emplace(fileDescriptor, level);
     this->location.emplace(fileDescriptor, point);
 }
 
-auto Timer::update(int fileDescriptor, unsigned long seconds) -> void {
-    const auto level{seconds / (this->wheel.size() - 1)};
+auto Timer::update(int fileDescriptor, std::chrono::seconds seconds) -> void {
+    const unsigned long level{(seconds / (this->wheel.size() - 1)).count()};
     const auto point{static_cast<decltype(this->now)>(seconds % (this->wheel.size() - 1))};
 
-    this->wheel[this->location.at(fileDescriptor)].erase(fileDescriptor);
-    this->wheel[point].emplace(fileDescriptor, level);
+    this->wheel[this->location.at(fileDescriptor).count()].erase(fileDescriptor);
+    this->wheel[point.count()].emplace(fileDescriptor, level);
 
     this->location.at(fileDescriptor) = point;
 }
@@ -48,7 +48,7 @@ auto Timer::update(int fileDescriptor, unsigned long seconds) -> void {
 auto Timer::remove(int fileDescriptor) -> void {
     const auto result{this->location.find(fileDescriptor)};
     if (result != this->location.cend()) {
-        this->wheel[result->second].erase(fileDescriptor);
+        this->wheel[result->second.count()].erase(fileDescriptor);
         this->location.erase(result);
     }
 }
@@ -57,7 +57,7 @@ auto Timer::clearTimeout() -> std::vector<int> {
     std::vector<int> result;
 
     while (this->timeout > 0) {
-        std::unordered_map<int, unsigned long> &wheelPoint{this->wheel[this->now]};
+        std::unordered_map<int, unsigned long> &wheelPoint{this->wheel[this->now.count()]};
         for (auto element{wheelPoint.begin()}; element != wheelPoint.end();) {
             if (element->second == 0) {
                 result.emplace_back(element->first);
@@ -71,7 +71,7 @@ auto Timer::clearTimeout() -> std::vector<int> {
         }
 
         ++this->now;
-        this->now %= this->wheel.size();
+        this->now %= static_cast<decltype(this->now)>(this->wheel.size());
         --this->timeout;
     }
 

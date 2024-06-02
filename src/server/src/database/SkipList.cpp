@@ -3,13 +3,13 @@
 #include <random>
 #include <utility>
 
-SkipList::SkipList(std::span<const std::byte> serializedSkipList) {
-    while (!serializedSkipList.empty()) {
-        const auto entrySize{*reinterpret_cast<const unsigned long *>(serializedSkipList.data())};
-        serializedSkipList = serializedSkipList.subspan(sizeof(entrySize));
+SkipList::SkipList(std::span<const std::byte> serialization) {
+    while (!serialization.empty()) {
+        const auto size{*reinterpret_cast<const unsigned long *>(serialization.data())};
+        serialization = serialization.subspan(sizeof(size));
 
-        auto entry{std::make_shared<Entry>(serializedSkipList.subspan(0, entrySize))};
-        serializedSkipList = serializedSkipList.subspan(entrySize);
+        auto entry{std::make_shared<Entry>(serialization.subspan(0, size))};
+        serialization = serialization.subspan(size);
 
         this->insert(std::move(entry));
     }

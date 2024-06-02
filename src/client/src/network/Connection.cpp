@@ -1,6 +1,6 @@
 #include "Connection.hpp"
 
-#include "../log/Exception.hpp"
+#include "../../../common/log/Exception.hpp"
 
 #include <arpa/inet.h>
 #include <cstring>

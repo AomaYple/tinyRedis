@@ -2,9 +2,9 @@
 
 #include "FileDescriptor.hpp"
 
+#include <chrono>
 #include <source_location>
 #include <unordered_map>
-#include <vector>
 
 class Timer : public FileDescriptor {
 public:
@@ -14,9 +14,9 @@ public:
 
     [[nodiscard]] auto timing() noexcept -> Awaiter;
 
-    auto add(int fileDescriptor, unsigned long seconds) -> void;
+    auto add(int fileDescriptor, std::chrono::seconds seconds) -> void;
 
-    auto update(int fileDescriptor, unsigned long seconds) -> void;
+    auto update(int fileDescriptor, std::chrono::seconds seconds) -> void;
 
     auto remove(int fileDescriptor) -> void;
 
@@ -30,7 +30,7 @@ private:
         -> void;
 
     unsigned long timeout{};
-    unsigned char now{};
+    std::chrono::seconds now{};
     std::array<std::unordered_map<int, unsigned long>, 61> wheel;
-    std::unordered_map<int, unsigned char> location;
+    std::unordered_map<int, std::chrono::seconds> location;
 };

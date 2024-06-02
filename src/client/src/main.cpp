@@ -1,12 +1,15 @@
-#include "log/Exception.hpp"
+#include "../../common/command/Command.hpp"
+#include "../../common/log/Exception.hpp"
 #include "network/Connection.hpp"
 
 #include <csignal>
 #include <cstring>
 #include <iostream>
 #include <print>
+#include <utility>
 
 auto shieldSignal(std::source_location sourceLocation = std::source_location::current()) -> void;
+auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std::byte>;
 
 auto main() -> int {
     shieldSignal();
@@ -16,29 +19,21 @@ auto main() -> int {
 
     unsigned long id{};
     while (true) {
-        const std::string serverInfo{std::format("tinyRedis {}:{}{}{}{}> ", peerName.first, peerName.second,
-                                                 id == 0 ? "" : "[", id == 0 ? "" : std::to_string(id),
-                                                 id == 0 ? "" : "]")};
+        const std::string serverInformation{std::format("tinyRedis {}:{}{}{}{}> ", peerName.first, peerName.second,
+                                                        id == 0 ? "" : "[", id == 0 ? "" : std::to_string(id),
+                                                        id == 0 ? "" : "]")};
 
         std::string buffer;
         while (buffer.empty()) {
-            std::print("{}", serverInfo);
+            std::print("{}", serverInformation);
             std::getline(std::cin, buffer);
         }
-
         if (buffer == "QUIT") break;
 
-        buffer.insert(buffer.cbegin(), sizeof(id), 0);
-        *reinterpret_cast<decltype(id) *>(buffer.data()) = id;
+        connection.send(formatRequest(buffer, id));
 
-        const auto spanBuffer{std::as_bytes(std::span{buffer})};
-        connection.send(spanBuffer);
-
-        const std::vector receivedData{connection.receive()};
-        id = *reinterpret_cast<const decltype(id) *>(receivedData.data());
-
-        const std::string_view response{reinterpret_cast<const char *>(receivedData.data() + sizeof(id)),
-                                        receivedData.size() - sizeof(id)};
+        const std::vector data{connection.receive()};
+        const std::string_view response{reinterpret_cast<const char *>(data.data()), data.size()};
         std::println("{}", response);
     }
 
@@ -62,3 +57,29 @@ auto shieldSignal(std::source_location sourceLocation) -> void {
         };
     }
 }
+
+auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std::byte> {
+    const unsigned long result{data.find(' ')};
+    const auto command{data.substr(0, result)};
+    auto statement{data.substr(result + 1)};
+
+    Command commandType{};
+    if (command == "SELECT") {
+        commandType = Command::select;
+        id = std::stoul(std::string{statement});
+        statement = {};
+    }
+    if (command == "EXISTS") commandType = Command::exists;
+    if (command == "GET") commandType = Command::get;
+
+    std::vector buffer{std::byte{std::to_underlying(commandType)}};
+
+    buffer.resize(buffer.size() + sizeof(unsigned long));
+    *reinterpret_cast<unsigned long *>(buffer.data() + buffer.size() - sizeof(unsigned long)) = id;
+
+    const auto spanStatement{std::as_bytes(std::span{statement})};
+    buffer.insert(buffer.cend(), spanStatement.cbegin(), spanStatement.cend());
+
+    return buffer;
+}
+

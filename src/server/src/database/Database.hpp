@@ -9,9 +9,11 @@ class Database {
 public:
     [[nodiscard]] static auto query(std::span<const std::byte> data) -> std::vector<std::byte>;
 
-    static auto select(std::string_view statement) -> std::vector<std::byte>;
+    static auto select(unsigned long id) -> std::vector<std::byte>;
 
-    [[nodiscard]] auto exists(std::string_view statement) -> std::vector<std::byte>;
+    [[nodiscard]] auto exists(std::string_view keys) -> std::vector<std::byte>;
+
+    [[nodiscard]] auto get(std::string_view key) -> std::vector<std::byte>;
 
     Database(const Database &) = delete;
 

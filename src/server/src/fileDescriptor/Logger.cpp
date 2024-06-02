@@ -1,6 +1,6 @@
 #include "Logger.hpp"
 
-#include "../log/Exception.hpp"
+#include "../../../common/log/Exception.hpp"
 
 #include <cstring>
 #include <fcntl.h>
