@@ -13,11 +13,13 @@ public:
 
     [[nodiscard]] auto del(std::string_view keys) -> std::vector<std::byte>;
 
-    [[nodiscard]] auto move(std::string_view statment) -> std::vector<std::byte>;
-
     [[nodiscard]] auto dump(std::string_view key) -> std::vector<std::byte>;
 
     [[nodiscard]] auto exists(std::string_view keys) -> std::vector<std::byte>;
+
+    [[nodiscard]] auto move(std::string_view statment) -> std::vector<std::byte>;
+
+    [[nodiscard]] auto rename(std::string_view statement) -> std::vector<std::byte>;
 
     [[nodiscard]] auto get(std::string_view key) -> std::vector<std::byte>;
 

@@ -34,6 +34,8 @@ public:
 
     [[nodiscard]] auto getKey() noexcept -> std::string &;
 
+    auto setKey(std::string_view key) -> void;
+
     [[nodiscard]] auto getType() const noexcept -> Type;
 
     [[nodiscard]] auto getString() -> std::string &;

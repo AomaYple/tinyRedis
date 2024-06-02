@@ -58,6 +58,8 @@ Entry::Entry(std::span<const std::byte> serialization) : type{static_cast<Type>(
 
 auto Entry::getKey() noexcept -> std::string & { return this->key; }
 
+auto Entry::setKey(std::string_view key) -> void { this->key = key; }
+
 auto Entry::getType() const noexcept -> Type { return this->type; }
 
 auto Entry::getString() -> std::string & { return std::get<std::string>(this->value); }

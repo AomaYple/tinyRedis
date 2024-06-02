@@ -8,6 +8,7 @@
 #include <mutex>
 #include <ranges>
 
+static constexpr std::string_view ok{"OK"};
 static constexpr std::string_view integer{"(integer) "};
 static constexpr std::string_view nil{"(nil)"};
 
@@ -24,12 +25,14 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return select(id);
         case Command::del:
             return databases.at(id).del(statement);
-        case Command::move:
-            return databases.at(id).move(statement);
         case Command::dump:
             return databases.at(id).dump(statement);
         case Command::exists:
             return databases.at(id).exists(statement);
+        case Command::move:
+            return databases.at(id).move(statement);
+        case Command::rename:
+            return databases.at(id).rename(statement);
         case Command::get:
             return databases.at(id).get(statement);
     }
@@ -40,7 +43,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
 auto Database::select(unsigned long id) -> std::vector<std::byte> {
     if (!databases.contains(id)) databases.emplace(id, Database{id});
 
-    return {std::byte{'O'}, std::byte{'K'}};
+    const auto spanOk{std::as_bytes(std::span{ok})};
+    return {spanOk.cbegin(), spanOk.cend()};
 }
 
 auto Database::del(std::string_view keys) -> std::vector<std::byte> {
@@ -50,6 +54,41 @@ auto Database::del(std::string_view keys) -> std::vector<std::byte> {
         const std::lock_guard lockGuard{this->lock};
         for (const auto &view : keys | std::views::split(' '))
             if (this->skipList.erase(std::string_view{view})) ++count;
+    }
+
+    std::vector<std::byte> buffer;
+
+    const auto spanInteger{std::as_bytes(std::span{integer})};
+    buffer.insert(buffer.cend(), spanInteger.cbegin(), spanInteger.cend());
+
+    const std::string stringCount{std::to_string(count)};
+    const auto spanCount{std::as_bytes(std::span{stringCount})};
+    buffer.insert(buffer.cend(), spanCount.cbegin(), spanCount.cend());
+
+    return buffer;
+}
+
+auto Database::dump(std::string_view key) -> std::vector<std::byte> {
+    {
+        const std::shared_lock sharedLock{this->lock};
+
+        const std::shared_ptr entry{this->skipList.find(key)};
+        if (entry != nullptr) return entry->serialize();
+    }
+
+    const auto spanNil{std::as_bytes(std::span{nil})};
+    return {spanNil.cbegin(), spanNil.cend()};
+}
+
+auto Database::exists(std::string_view keys) -> std::vector<std::byte> {
+    unsigned long count{};
+
+    {
+        const std::shared_lock sharedLock{this->lock};
+        for (const auto &view : keys | std::views::split(' ')) {
+            const std::string_view key{view};
+            if (this->skipList.find(key) != nullptr) ++count;
+        }
     }
 
     std::vector<std::byte> buffer;
@@ -90,40 +129,21 @@ auto Database::move(std::string_view statment) -> std::vector<std::byte> {
     return buffer;
 }
 
-auto Database::dump(std::string_view key) -> std::vector<std::byte> {
+auto Database::rename(std::string_view statement) -> std::vector<std::byte> {
+    const unsigned long result{statement.find(' ')};
+    const std::string_view key{statement.substr(0, result)}, newKey{statement.substr(result + 1)};
+
+    std::string_view response{ok};
     {
-        const std::shared_lock sharedLock{this->lock};
+        const std::lock_guard lockGuard{this->lock};
 
         const std::shared_ptr entry{this->skipList.find(key)};
-        if (entry != nullptr) return entry->serialize();
+        if (entry != nullptr) entry->setKey(newKey);
+        else response = "(error) ERR no such key";
     }
+    const auto spanResponse{std::as_bytes(std::span{response})};
 
-    const auto spanNil{std::as_bytes(std::span{nil})};
-    return {spanNil.cbegin(), spanNil.cend()};
-}
-
-auto Database::exists(std::string_view keys) -> std::vector<std::byte> {
-    unsigned long count{};
-
-    {
-        const std::shared_lock sharedLock{this->lock};
-        for (const auto &view : keys | std::views::split(' ')) {
-            const std::string_view key{view};
-            if (this->skipList.find(key) != nullptr) ++count;
-        }
-    }
-
-    std::vector<std::byte> buffer;
-
-    static constexpr std::string_view integer{"(integer) "};
-    const auto spanInteger{std::as_bytes(std::span{integer})};
-    buffer.insert(buffer.cend(), spanInteger.cbegin(), spanInteger.cend());
-
-    const std::string stringCount{std::to_string(count)};
-    const auto spanCount{std::as_bytes(std::span{stringCount})};
-    buffer.insert(buffer.cend(), spanCount.cbegin(), spanCount.cend());
-
-    return buffer;
+    return {spanResponse.cbegin(), spanResponse.cend()};
 }
 
 auto Database::get(std::string_view key) -> std::vector<std::byte> {

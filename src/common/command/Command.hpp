@@ -4,7 +4,8 @@ enum class Command : unsigned char {
     select,
     del,
     dump,
-    move,
     exists,
+    move,
+    rename,
     get,
 };
