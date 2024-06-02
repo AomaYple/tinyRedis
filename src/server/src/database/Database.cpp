@@ -9,6 +9,7 @@
 #include <ranges>
 
 static constexpr std::string_view integer{"(integer) "};
+static constexpr std::string_view nil{"(nil)"};
 
 auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> {
     const auto command{static_cast<Command>(data.front())};
@@ -23,6 +24,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return select(id);
         case Command::del:
             return databases.at(id).del(statement);
+        case Command::dump:
+            return databases.at(id).dump(statement);
         case Command::exists:
             return databases.at(id).exists(statement);
         case Command::get:
@@ -57,6 +60,18 @@ auto Database::del(std::string_view keys) -> std::vector<std::byte> {
     buffer.insert(buffer.cend(), spanCount.cbegin(), spanCount.cend());
 
     return buffer;
+}
+
+auto Database::dump(std::string_view key) -> std::vector<std::byte> {
+    {
+        const std::shared_lock sharedLock{this->lock};
+
+        const std::shared_ptr entry{this->skipList.find(key)};
+        if (entry != nullptr) return entry->serialize();
+    }
+
+    const auto spanNil{std::as_bytes(std::span{nil})};
+    return {spanNil.cbegin(), spanNil.cend()};
 }
 
 auto Database::exists(std::string_view keys) -> std::vector<std::byte> {
@@ -95,7 +110,7 @@ auto Database::get(std::string_view key) -> std::vector<std::byte> {
             const Entry::Type type{entry->getType()};
             if (type == Entry::Type::string) response = '"' + entry->getString() + '"';
             else response = "(error) ERR Operation against a key holding the wrong kind of value";
-        } else response = "(nil)";
+        } else response = nil;
     }
 
     const auto spanResponse{std::as_bytes(std::span{response})};

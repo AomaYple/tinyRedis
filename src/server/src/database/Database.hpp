@@ -11,7 +11,9 @@ public:
 
     static auto select(unsigned long id) -> std::vector<std::byte>;
 
-    auto del(std::string_view keys) -> std::vector<std::byte>;
+    [[nodiscard]] auto del(std::string_view keys) -> std::vector<std::byte>;
+
+    [[nodiscard]] auto dump(std::string_view key) -> std::vector<std::byte>;
 
     [[nodiscard]] auto exists(std::string_view keys) -> std::vector<std::byte>;
 
