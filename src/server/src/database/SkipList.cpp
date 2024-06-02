@@ -76,7 +76,7 @@ auto SkipList::insert(std::shared_ptr<Entry> &&entry) const -> void {
     }
 }
 
-auto SkipList::erase(std::string_view key) const noexcept -> void {
+auto SkipList::erase(std::string_view key) const noexcept -> bool {
     Node *node{this->start};
     while (node != nullptr) {
         while (node->next != nullptr && key > node->next->entry->getKey()) node = node->next;
@@ -86,10 +86,14 @@ auto SkipList::erase(std::string_view key) const noexcept -> void {
             const Node *const deleteNode{next};
             node->next = next->next;
             delete deleteNode;
-        } else [[likely]] {
-            node = down;
+
+            return true;
         }
+
+        node = down;
     }
+
+    return false;
 }
 
 auto SkipList::serialize() const -> std::vector<std::byte> {

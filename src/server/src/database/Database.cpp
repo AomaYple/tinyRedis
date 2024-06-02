@@ -8,6 +8,8 @@
 #include <mutex>
 #include <ranges>
 
+static constexpr std::string_view integer{"(integer) "};
+
 auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> {
     const auto command{static_cast<Command>(data.front())};
     data = data.subspan(sizeof(command));
@@ -23,6 +25,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return databases.at(id).exists(statement);
         case Command::get:
             return databases.at(id).get(statement);
+        case Command::del:
+            return databases.at(id).del(statement);
     }
 
     return {data.cbegin(), data.cend()};
@@ -75,6 +79,27 @@ auto Database::get(std::string_view key) -> std::vector<std::byte> {
 
     const auto spanResponse{std::as_bytes(std::span{response})};
     buffer.insert(buffer.cend(), spanResponse.cbegin(), spanResponse.cend());
+
+    return buffer;
+}
+
+auto Database::del(std::string_view keys) -> std::vector<std::byte> {
+    unsigned long count{};
+
+    {
+        const std::lock_guard lockGuard{this->lock};
+        for (const auto &view : keys | std::views::split(' '))
+            if (this->skipList.erase(std::string_view{view})) ++count;
+    }
+
+    std::vector<std::byte> buffer;
+
+    const auto spanInteger{std::as_bytes(std::span{integer})};
+    buffer.insert(buffer.cend(), spanInteger.cbegin(), spanInteger.cend());
+
+    const std::string stringCount{std::to_string(count)};
+    const auto spanCount{std::as_bytes(std::span{stringCount})};
+    buffer.insert(buffer.cend(), spanCount.cbegin(), spanCount.cend());
 
     return buffer;
 }

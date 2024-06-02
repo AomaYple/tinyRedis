@@ -15,6 +15,8 @@ public:
 
     [[nodiscard]] auto get(std::string_view key) -> std::vector<std::byte>;
 
+    auto del(std::string_view keys) -> std::vector<std::byte>;
+
     Database(const Database &) = delete;
 
     Database(Database &&) noexcept;

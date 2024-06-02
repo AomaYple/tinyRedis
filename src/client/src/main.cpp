@@ -68,9 +68,9 @@ auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std:
         commandType = Command::select;
         id = std::stoul(std::string{statement});
         statement = {};
-    }
-    if (command == "EXISTS") commandType = Command::exists;
-    if (command == "GET") commandType = Command::get;
+    } else if (command == "EXISTS") commandType = Command::exists;
+    else if (command == "GET") commandType = Command::get;
+    else if (command == "DEL") commandType = Command::del;
 
     std::vector buffer{std::byte{std::to_underlying(commandType)}};
 

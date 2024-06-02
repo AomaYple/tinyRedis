@@ -4,7 +4,9 @@
 
 template<>
 struct std::hash<Entry::SortedSetElement> {
-    auto operator()(const Entry::SortedSetElement &other) const noexcept -> size_t { return hash<string>{}(other.key); }
+    auto operator()(const Entry::SortedSetElement &other) const noexcept {
+        return hash<decltype(other.key)>{}(other.key);
+    }
 };
 
 auto Entry::SortedSetElement::operator<(const SortedSetElement &other) const noexcept -> bool {
