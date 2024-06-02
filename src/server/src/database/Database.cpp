@@ -138,8 +138,10 @@ auto Database::rename(std::string_view statement) -> std::vector<std::byte> {
         const std::lock_guard lockGuard{this->lock};
 
         const std::shared_ptr entry{this->skipList.find(key)};
-        if (entry != nullptr) entry->setKey(newKey);
-        else response = "(error) ERR no such key";
+        if (entry != nullptr) {
+            this->skipList.erase(newKey);
+            entry->setKey(newKey);
+        } else response = "(error) ERR no such key";
     }
     const auto spanResponse{std::as_bytes(std::span{response})};
 
