@@ -74,6 +74,7 @@ auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std:
     else if (command == "MOVE") commandType = Command::move;
     else if (command == "RENAME") commandType = Command::rename;
     else if (command == "RENAMENX") commandType = Command::renamenx;
+    else if (command == "TYPE") commandType = Command::type;
     else if (command == "GET") commandType = Command::get;
 
     std::vector buffer{std::byte{std::to_underlying(commandType)}};

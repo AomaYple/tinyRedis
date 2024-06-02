@@ -35,6 +35,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return databases.at(id).rename(statement);
         case Command::renamenx:
             return databases.at(id).renamenx(statement);
+        case Command::type:
+            return databases.at(id).type(statement);
         case Command::get:
             return databases.at(id).get(statement);
     }
@@ -160,7 +162,7 @@ auto Database::rename(std::string_view statement) -> std::vector<std::byte> {
     const unsigned long result{statement.find(' ')};
     const std::string_view key{statement.substr(0, result)}, newKey{statement.substr(result + 1)};
 
-    std::string_view response{ok};
+    std::string response;
     {
         const std::lock_guard lockGuard{this->lock};
 
@@ -168,6 +170,8 @@ auto Database::rename(std::string_view statement) -> std::vector<std::byte> {
         if (entry != nullptr) {
             this->skipList.erase(newKey);
             entry->setKey(newKey);
+
+            response = '"' + std::string{ok} + '"';
         } else response = "(error) ERR no such key";
     }
     const auto spanResponse{std::as_bytes(std::span{response})};
@@ -194,6 +198,41 @@ auto Database::renamenx(std::string_view statement) -> std::vector<std::byte> {
     const auto spanInteger{std::as_bytes(std::span{integer})};
     std::vector<std::byte> buffer{spanInteger.cbegin(), spanInteger.cend()};
     buffer.emplace_back(success ? std::byte{'1'} : std::byte{'0'});
+
+    return buffer;
+}
+
+auto Database::type(std::string_view key) -> std::vector<std::byte> {
+    std::string_view response;
+    {
+        const std::shared_lock sharedLock{this->lock};
+
+        const std::shared_ptr entry{this->skipList.find(key)};
+        if (entry != nullptr) {
+            switch (entry->getType()) {
+                case Entry::Type::string:
+                    response = "string";
+                    break;
+                case Entry::Type::hash:
+                    response = "hash";
+                    break;
+                case Entry::Type::list:
+                    response = "list";
+                    break;
+                case Entry::Type::set:
+                    response = "set";
+                    break;
+                case Entry::Type::sortedSet:
+                    response = "zset";
+                    break;
+            }
+        } else response = "none";
+    }
+    const auto spanResponse{std::as_bytes(std::span{response})};
+
+    std::vector buffer{std::byte{'"'}};
+    buffer.insert(buffer.cend(), spanResponse.cbegin(), spanResponse.cend());
+    buffer.emplace_back(std::byte{'"'});
 
     return buffer;
 }

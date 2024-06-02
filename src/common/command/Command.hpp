@@ -8,5 +8,6 @@ enum class Command : unsigned char {
     move,
     rename,
     renamenx,
+    type,
     get,
 };
