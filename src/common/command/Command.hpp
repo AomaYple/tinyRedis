@@ -7,5 +7,6 @@ enum class Command : unsigned char {
     exists,
     move,
     rename,
+    renamenx,
     get,
 };

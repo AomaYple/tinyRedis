@@ -33,6 +33,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return databases.at(id).move(statement);
         case Command::rename:
             return databases.at(id).rename(statement);
+        case Command::renamenx:
+            return databases.at(id).renamenx(statement);
         case Command::get:
             return databases.at(id).get(statement);
     }
@@ -45,6 +47,31 @@ auto Database::select(unsigned long id) -> std::vector<std::byte> {
 
     const auto spanOk{std::as_bytes(std::span{ok})};
     return {spanOk.cbegin(), spanOk.cend()};
+}
+
+Database::Database(Database &&other) noexcept {
+    const std::lock_guard lockGuard{other.lock};
+
+    this->id = other.id;
+    this->skipList = std::move(other.skipList);
+}
+
+auto Database::operator=(Database &&other) noexcept -> Database & {
+    const std::scoped_lock scopedLock{this->lock, other.lock};
+
+    if (this == &other) return *this;
+
+    this->id = other.id;
+    this->skipList = std::move(other.skipList);
+
+    return *this;
+}
+
+Database::~Database() {
+    const std::vector serialization{this->skipList.serialize()};
+
+    std::ofstream file{filepathPrefix + std::to_string(this->id) + ".db", std::ios::binary};
+    file.write(reinterpret_cast<const char *>(serialization.data()), static_cast<long>(serialization.size()));
 }
 
 auto Database::del(std::string_view keys) -> std::vector<std::byte> {
@@ -148,6 +175,29 @@ auto Database::rename(std::string_view statement) -> std::vector<std::byte> {
     return {spanResponse.cbegin(), spanResponse.cend()};
 }
 
+auto Database::renamenx(std::string_view statement) -> std::vector<std::byte> {
+    const unsigned long result{statement.find(' ')};
+    const std::string_view key{statement.substr(0, result)}, newKey{statement.substr(result + 1)};
+
+    bool success{};
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        const std::shared_ptr entry{this->skipList.find(key)}, otherEntry{this->skipList.find(newKey)};
+        if (entry != nullptr && otherEntry == nullptr) {
+            entry->setKey(newKey);
+
+            success = true;
+        }
+    }
+
+    const auto spanInteger{std::as_bytes(std::span{integer})};
+    std::vector<std::byte> buffer{spanInteger.cbegin(), spanInteger.cend()};
+    buffer.emplace_back(success ? std::byte{'1'} : std::byte{'0'});
+
+    return buffer;
+}
+
 auto Database::get(std::string_view key) -> std::vector<std::byte> {
     std::vector<std::byte> buffer;
 
@@ -167,31 +217,6 @@ auto Database::get(std::string_view key) -> std::vector<std::byte> {
     buffer.insert(buffer.cend(), spanResponse.cbegin(), spanResponse.cend());
 
     return buffer;
-}
-
-Database::Database(Database &&other) noexcept {
-    const std::lock_guard lockGuard{other.lock};
-
-    this->id = other.id;
-    this->skipList = std::move(other.skipList);
-}
-
-auto Database::operator=(Database &&other) noexcept -> Database & {
-    const std::scoped_lock scopedLock{this->lock, other.lock};
-
-    if (this == &other) return *this;
-
-    this->id = other.id;
-    this->skipList = std::move(other.skipList);
-
-    return *this;
-}
-
-Database::~Database() {
-    const std::vector serialization{this->skipList.serialize()};
-
-    std::ofstream file{filepathPrefix + std::to_string(this->id) + ".db", std::ios::binary};
-    file.write(reinterpret_cast<const char *>(serialization.data()), static_cast<long>(serialization.size()));
 }
 
 auto Database::initialize() -> std::unordered_map<unsigned long, Database> {

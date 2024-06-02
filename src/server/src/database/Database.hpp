@@ -11,6 +11,16 @@ public:
 
     [[nodiscard]] static auto select(unsigned long id) -> std::vector<std::byte>;
 
+    Database(const Database &) = delete;
+
+    Database(Database &&) noexcept;
+
+    auto operator=(const Database &) -> Database = delete;
+
+    auto operator=(Database &&) noexcept -> Database &;
+
+    ~Database();
+
     [[nodiscard]] auto del(std::string_view keys) -> std::vector<std::byte>;
 
     [[nodiscard]] auto dump(std::string_view key) -> std::vector<std::byte>;
@@ -21,17 +31,9 @@ public:
 
     [[nodiscard]] auto rename(std::string_view statement) -> std::vector<std::byte>;
 
+    [[nodiscard]] auto renamenx(std::string_view statement) -> std::vector<std::byte>;
+
     [[nodiscard]] auto get(std::string_view key) -> std::vector<std::byte>;
-
-    Database(const Database &) = delete;
-
-    Database(Database &&) noexcept;
-
-    auto operator=(const Database &) -> Database = delete;
-
-    auto operator=(Database &&) noexcept -> Database &;
-
-    ~Database();
 
 private:
     static auto initialize() -> std::unordered_map<unsigned long, Database>;
