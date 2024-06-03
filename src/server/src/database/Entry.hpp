@@ -48,6 +48,16 @@ public:
 
     [[nodiscard]] auto getSortedSet() -> std::set<SortedSetElement> &;
 
+    auto setValue(std::string &&value) noexcept -> void;
+
+    auto setValue(std::unordered_map<std::string, std::string> &&value) noexcept -> void;
+
+    auto setValue(std::deque<std::string> &&value) noexcept -> void;
+
+    auto setValue(std::unordered_set<std::string> &&value) noexcept -> void;
+
+    auto setValue(std::set<SortedSetElement> &&value) noexcept -> void;
+
     [[nodiscard]] auto serialize() const -> std::vector<std::byte>;
 
 private:

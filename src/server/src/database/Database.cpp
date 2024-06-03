@@ -37,6 +37,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return databases.at(id).renamenx(statement);
         case Command::type:
             return databases.at(id).type(statement);
+        case Command::set:
+            return databases.at(id).set(statement);
         case Command::get:
             return databases.at(id).get(statement);
     }
@@ -98,11 +100,19 @@ auto Database::del(std::string_view keys) -> std::vector<std::byte> {
 }
 
 auto Database::dump(std::string_view key) -> std::vector<std::byte> {
+    std::vector<std::byte> serialization;
     {
         const std::shared_lock sharedLock{this->lock};
 
         const std::shared_ptr entry{this->skipList.find(key)};
-        if (entry != nullptr) return entry->serialize();
+        if (entry != nullptr) serialization = entry->serialize();
+    }
+
+    if (!serialization.empty()) {
+        serialization.insert(serialization.cbegin(), std::byte{'"'});
+        serialization.emplace_back(std::byte{'"'});
+
+        return serialization;
     }
 
     const auto spanNil{std::as_bytes(std::span{nil})};
@@ -114,10 +124,8 @@ auto Database::exists(std::string_view keys) -> std::vector<std::byte> {
 
     {
         const std::shared_lock sharedLock{this->lock};
-        for (const auto &view : keys | std::views::split(' ')) {
-            const std::string_view key{view};
-            if (this->skipList.find(key) != nullptr) ++count;
-        }
+        for (const auto &view : keys | std::views::split(' '))
+            if (this->skipList.find(std::string_view{view}) != nullptr) ++count;
     }
 
     std::vector<std::byte> buffer;
@@ -135,19 +143,23 @@ auto Database::exists(std::string_view keys) -> std::vector<std::byte> {
 auto Database::move(std::string_view statment) -> std::vector<std::byte> {
     const unsigned long result{statment.find(' ')};
     const std::string_view key{statment.substr(0, result)};
-    Database &target{databases.at(std::stoul(std::string{statment.substr(result + 1)}))};
 
     bool success{};
     {
-        const std::scoped_lock scopedLock{this->lock, target.lock};
+        const auto targetResult{databases.find(std::stoul(std::string{statment.substr(result + 1)}))};
+        if (targetResult != databases.cend()) {
+            Database &target{targetResult->second};
 
-        std::shared_ptr entry{this->skipList.find(key)};
-        const std::shared_ptr targetEntry{target.skipList.find(key)};
-        if (entry != nullptr && targetEntry == nullptr) {
-            this->skipList.erase(key);
-            target.skipList.insert(std::move(entry));
+            const std::scoped_lock scopedLock{this->lock, target.lock};
 
-            success = true;
+            std::shared_ptr entry{this->skipList.find(key)};
+            const std::shared_ptr targetEntry{target.skipList.find(key)};
+            if (entry != nullptr && targetEntry == nullptr) {
+                this->skipList.erase(key);
+                target.skipList.insert(std::move(entry));
+
+                success = true;
+            }
         }
     }
 
@@ -166,10 +178,13 @@ auto Database::rename(std::string_view statement) -> std::vector<std::byte> {
     {
         const std::lock_guard lockGuard{this->lock};
 
-        const std::shared_ptr entry{this->skipList.find(key)};
+        std::shared_ptr entry{this->skipList.find(key)};
         if (entry != nullptr) {
+            this->skipList.erase(key);
             this->skipList.erase(newKey);
+
             entry->setKey(newKey);
+            this->skipList.insert(std::move(entry));
 
             response = '"' + std::string{ok} + '"';
         } else response = "(error) ERR no such key";
@@ -187,9 +202,13 @@ auto Database::renamenx(std::string_view statement) -> std::vector<std::byte> {
     {
         const std::lock_guard lockGuard{this->lock};
 
-        const std::shared_ptr entry{this->skipList.find(key)}, otherEntry{this->skipList.find(newKey)};
+        std::shared_ptr entry{this->skipList.find(key)};
+        const std::shared_ptr otherEntry{this->skipList.find(newKey)};
         if (entry != nullptr && otherEntry == nullptr) {
+            this->skipList.erase(key);
+
             entry->setKey(newKey);
+            this->skipList.insert(std::move(entry));
 
             success = true;
         }
@@ -237,9 +256,29 @@ auto Database::type(std::string_view key) -> std::vector<std::byte> {
     return buffer;
 }
 
-auto Database::get(std::string_view key) -> std::vector<std::byte> {
-    std::vector<std::byte> buffer;
+auto Database::set(std::string_view statement) -> std::vector<std::byte> {
+    const unsigned long result{statement.find(' ')};
+    const std::string_view key{statement.substr(0, result)};
+    std::string_view value{statement.substr(result + 2)};
+    value.remove_suffix(1);
 
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        const std::shared_ptr entry{this->skipList.find(key)};
+        if (entry == nullptr) this->skipList.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
+        else entry->setValue(std::string{value});
+    }
+
+    std::vector buffer{std::byte{'"'}};
+    const auto spanOk{std::as_bytes(std::span{ok})};
+    buffer.insert(buffer.cend(), spanOk.cbegin(), spanOk.cend());
+    buffer.emplace_back(std::byte{'"'});
+
+    return buffer;
+}
+
+auto Database::get(std::string_view key) -> std::vector<std::byte> {
     std::string response;
     {
         const std::shared_lock sharedLock{this->lock};
@@ -253,9 +292,7 @@ auto Database::get(std::string_view key) -> std::vector<std::byte> {
     }
 
     const auto spanResponse{std::as_bytes(std::span{response})};
-    buffer.insert(buffer.cend(), spanResponse.cbegin(), spanResponse.cend());
-
-    return buffer;
+    return {spanResponse.cbegin(), spanResponse.cend()};
 }
 
 auto Database::initialize() -> std::unordered_map<unsigned long, Database> {

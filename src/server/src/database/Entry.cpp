@@ -76,6 +76,31 @@ auto Entry::getSet() -> std::unordered_set<std::string> & {
 
 auto Entry::getSortedSet() -> std::set<SortedSetElement> & { return std::get<std::set<SortedSetElement>>(this->value); }
 
+auto Entry::setValue(std::string &&value) noexcept -> void {
+    this->type = Type::string;
+    this->value = std::move(value);
+}
+
+auto Entry::setValue(std::unordered_map<std::string, std::string> &&value) noexcept -> void {
+    this->type = Type::hash;
+    this->value = std::move(value);
+}
+
+auto Entry::setValue(std::deque<std::string> &&value) noexcept -> void {
+    this->type = Type::list;
+    this->value = std::move(value);
+}
+
+auto Entry::setValue(std::unordered_set<std::string> &&value) noexcept -> void {
+    this->type = Type::set;
+    this->value = std::move(value);
+}
+
+auto Entry::setValue(std::set<SortedSetElement> &&value) noexcept -> void {
+    this->type = Type::sortedSet;
+    this->value = std::move(value);
+}
+
 auto Entry::serialize() const -> std::vector<std::byte> {
     std::vector<std::byte> serializedValue;
     switch (this->type) {

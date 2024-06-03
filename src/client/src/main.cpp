@@ -28,7 +28,10 @@ auto main() -> int {
             std::print("{}", serverInformation);
             std::getline(std::cin, buffer);
         }
-        if (buffer == "QUIT") break;
+        if (buffer == "QUIT") {
+            std::println("OK");
+            break;
+        }
 
         connection.send(formatRequest(buffer, id));
 
@@ -75,6 +78,7 @@ auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std:
     else if (command == "RENAME") commandType = Command::rename;
     else if (command == "RENAMENX") commandType = Command::renamenx;
     else if (command == "TYPE") commandType = Command::type;
+    else if (command == "SET") commandType = Command::set;
     else if (command == "GET") commandType = Command::get;
 
     std::vector buffer{std::byte{std::to_underlying(commandType)}};

@@ -9,5 +9,6 @@ enum class Command : unsigned char {
     rename,
     renamenx,
     type,
+    set,
     get,
 };

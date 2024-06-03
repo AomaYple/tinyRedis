@@ -35,6 +35,8 @@ public:
 
     [[nodiscard]] auto type(std::string_view key) -> std::vector<std::byte>;
 
+    [[nodiscard]] auto set(std::string_view statement) -> std::vector<std::byte>;
+
     [[nodiscard]] auto get(std::string_view key) -> std::vector<std::byte>;
 
 private:
