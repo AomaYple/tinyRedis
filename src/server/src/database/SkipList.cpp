@@ -118,7 +118,7 @@ auto SkipList::initlialize() -> Node * {
     const auto entry{std::make_shared<Entry>(std::string{}, std::string{})};
     for (unsigned char i{maxLevel}; i > 0; --i) {
         Node *const node{
-            new Node{static_cast<unsigned char>(i - 1), entry}
+            new Node{static_cast<decltype(i)>(i - 1), entry}
         };
         if (previous != nullptr) {
             previous->down = node;

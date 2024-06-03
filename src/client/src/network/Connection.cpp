@@ -43,8 +43,7 @@ auto Connection::getPeerName(std::source_location sourceLocation) const -> std::
         };
     }
 
-    return std::pair<std::string, std::string>{deTranslateIpAddress(address.sin_addr),
-                                               std::to_string(ntohs(address.sin_port))};
+    return {deTranslateIpAddress(address.sin_addr), std::to_string(ntohs(address.sin_port))};
 }
 
 auto Connection::send(std::span<const std::byte> data, std::source_location sourceLocation) const -> void {

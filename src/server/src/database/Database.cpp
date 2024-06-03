@@ -83,6 +83,7 @@ auto Database::del(std::string_view keys) -> std::vector<std::byte> {
 
     {
         const std::lock_guard lockGuard{this->lock};
+
         for (const auto &view : keys | std::views::split(' '))
             if (this->skipList.erase(std::string_view{view})) ++count;
     }
@@ -116,6 +117,7 @@ auto Database::dump(std::string_view key) -> std::vector<std::byte> {
     }
 
     const auto spanNil{std::as_bytes(std::span{nil})};
+
     return {spanNil.cbegin(), spanNil.cend()};
 }
 
@@ -124,6 +126,7 @@ auto Database::exists(std::string_view keys) -> std::vector<std::byte> {
 
     {
         const std::shared_lock sharedLock{this->lock};
+
         for (const auto &view : keys | std::views::split(' '))
             if (this->skipList.find(std::string_view{view}) != nullptr) ++count;
     }
@@ -181,13 +184,12 @@ auto Database::rename(std::string_view statement) -> std::vector<std::byte> {
         std::shared_ptr entry{this->skipList.find(key)};
         if (entry != nullptr) {
             this->skipList.erase(key);
-            this->skipList.erase(newKey);
 
-            entry->setKey(newKey);
+            entry->getKey() = newKey;
             this->skipList.insert(std::move(entry));
 
             response = '"' + std::string{ok} + '"';
-        } else response = "(error) ERR no such key";
+        } else response = "(error) no such key";
     }
     const auto spanResponse{std::as_bytes(std::span{response})};
 
@@ -207,7 +209,7 @@ auto Database::renamenx(std::string_view statement) -> std::vector<std::byte> {
         if (entry != nullptr && otherEntry == nullptr) {
             this->skipList.erase(key);
 
-            entry->setKey(newKey);
+            entry->getKey() = newKey;
             this->skipList.insert(std::move(entry));
 
             success = true;
@@ -265,9 +267,7 @@ auto Database::set(std::string_view statement) -> std::vector<std::byte> {
     {
         const std::lock_guard lockGuard{this->lock};
 
-        const std::shared_ptr entry{this->skipList.find(key)};
-        if (entry == nullptr) this->skipList.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
-        else entry->setValue(std::string{value});
+        this->skipList.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
     }
 
     std::vector buffer{std::byte{'"'}};
@@ -287,7 +287,7 @@ auto Database::get(std::string_view key) -> std::vector<std::byte> {
         if (entry != nullptr) {
             const Entry::Type type{entry->getType()};
             if (type == Entry::Type::string) response = '"' + entry->getString() + '"';
-            else response = "(error) ERR Operation against a key holding the wrong kind of value";
+            else response = "(error) WRONGTYPE Operation against a key holding the wrong kind of value";
         } else response = nil;
     }
 

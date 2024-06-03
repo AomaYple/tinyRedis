@@ -32,11 +32,9 @@ public:
 
     explicit Entry(std::span<const std::byte> serialization);
 
-    [[nodiscard]] auto getKey() noexcept -> std::string &;
-
-    auto setKey(std::string_view key) -> void;
-
     [[nodiscard]] auto getType() const noexcept -> Type;
+
+    [[nodiscard]] auto getKey() noexcept -> std::string &;
 
     [[nodiscard]] auto getString() -> std::string &;
 
