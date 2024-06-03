@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SkipList.hpp"
+#include "Skiplist.hpp"
 
 #include <shared_mutex>
 #include <source_location>
@@ -50,6 +50,6 @@ private:
     static std::unordered_map<unsigned long, Database> databases;
 
     unsigned long id;
-    SkipList skipList;
+    Skiplist skiplist;
     std::shared_mutex lock;
 };

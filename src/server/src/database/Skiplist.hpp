@@ -4,7 +4,7 @@
 
 #include <memory>
 
-class SkipList {
+class Skiplist {
     struct Node {
         unsigned char level;
         std::shared_ptr<Entry> entry;
@@ -12,19 +12,19 @@ class SkipList {
     };
 
 public:
-    SkipList() = default;
+    Skiplist() = default;
 
-    explicit SkipList(std::span<const std::byte> serialization);
+    explicit Skiplist(std::span<const std::byte> serialization);
 
-    SkipList(const SkipList &);
+    Skiplist(const Skiplist &);
 
-    SkipList(SkipList &&) noexcept;
+    Skiplist(Skiplist &&) noexcept;
 
-    auto operator=(const SkipList &) -> SkipList &;
+    auto operator=(const Skiplist &) -> Skiplist &;
 
-    auto operator=(SkipList &&) noexcept -> SkipList &;
+    auto operator=(Skiplist &&) noexcept -> Skiplist &;
 
-    ~SkipList();
+    ~Skiplist();
 
     [[nodiscard]] auto find(std::string_view key) const noexcept -> std::shared_ptr<Entry>;
 
