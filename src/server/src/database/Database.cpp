@@ -41,6 +41,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return databases.at(id).set(statement);
         case Command::get:
             return databases.at(id).get(statement);
+        case Command::getrange:
+            return databases.at(id).getRange(statement);
     }
 
     return {data.cbegin(), data.cend()};
@@ -292,6 +294,34 @@ auto Database::get(std::string_view key) -> std::vector<std::byte> {
     }
 
     const auto spanResponse{std::as_bytes(std::span{response})};
+    return {spanResponse.cbegin(), spanResponse.cend()};
+}
+
+auto Database::getRange(std::string_view statement) -> std::vector<std::byte> {
+    unsigned long result{statement.find(' ')};
+    const std::string_view key{statement.substr(0, result)};
+    statement.remove_prefix(result + 1);
+
+    result = statement.find(' ');
+    const auto start{std::stol(std::string{statement.substr(0, result)})};
+    auto end{std::stol(std::string{statement.substr(result + 1)})};
+
+    std::string response{'"'};
+    {
+        const std::shared_lock sharedLock{this->lock};
+
+        const std::shared_ptr entry{this->skipList.find(key)};
+        if (entry != nullptr) {
+            end = end < 0 ? static_cast<decltype(end)>(entry->getString().size()) + end : end;
+            ++end;
+
+            if (start < end) response += entry->getString().substr(start, end - start);
+        }
+    }
+    response += '"';
+
+    const auto spanResponse{std::as_bytes(std::span{response})};
+
     return {spanResponse.cbegin(), spanResponse.cend()};
 }
 
