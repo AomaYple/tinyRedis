@@ -49,6 +49,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return databases.at(id).getSet(statement);
         case Command::mget:
             return databases.at(id).mget(statement);
+        case Command::setnx:
+            return databases.at(id).setnx(statement);
     }
 
     return {data.cbegin(), data.cend()};
@@ -364,6 +366,29 @@ auto Database::mget(const std::string_view keys) -> std::vector<std::byte> {
         }
     }
     response.pop_back();
+    const auto spanResponse{std::as_bytes(std::span{response})};
+
+    return {spanResponse.cbegin(), spanResponse.cend()};
+}
+
+auto Database::setnx(const std::string_view statement) -> std::vector<std::byte> {
+    const unsigned long result{statement.find(' ')};
+    std::string_view value{statement.substr(result + 2)};
+    value.remove_suffix(1);
+
+    std::string response{integer};
+    bool success{};
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        if (this->skiplist.find(statement.substr(0, result)) == nullptr) {
+            this->skiplist.insert(
+                std::make_shared<Entry>(std::string{statement.substr(0, result)}, std::string{value}));
+
+            success = true;
+        }
+    }
+    response += success ? '1' : '0';
     const auto spanResponse{std::as_bytes(std::span{response})};
 
     return {spanResponse.cbegin(), spanResponse.cend()};

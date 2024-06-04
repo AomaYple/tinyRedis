@@ -45,6 +45,8 @@ public:
 
     [[nodiscard]] auto mget(std::string_view keys) -> std::vector<std::byte>;
 
+    [[nodiscard]] auto setnx(std::string_view statement) -> std::vector<std::byte>;
+
 private:
     static auto initialize() -> std::unordered_map<unsigned long, Database>;
 
