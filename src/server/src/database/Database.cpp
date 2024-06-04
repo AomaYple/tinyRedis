@@ -51,6 +51,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return databases.at(id).mget(statement);
         case Command::setnx:
             return databases.at(id).setnx(statement);
+        case Command::setRange:
+            return databases.at(id).setRange(statement);
     }
 
     return {data.cbegin(), data.cend()};
@@ -389,6 +391,47 @@ auto Database::setnx(const std::string_view statement) -> std::vector<std::byte>
         }
     }
     response += success ? '1' : '0';
+    const auto spanResponse{std::as_bytes(std::span{response})};
+
+    return {spanResponse.cbegin(), spanResponse.cend()};
+}
+
+auto Database::setRange(std::string_view statement) -> std::vector<std::byte> {
+    unsigned long result{statement.find(' ')};
+    const std::string_view key{statement.substr(0, result)};
+    statement.remove_prefix(result + 1);
+
+    result = statement.find(' ');
+    const auto offset{std::stoul(std::string{statement.substr(0, result)})};
+    std::string_view value{statement.substr(result + 2)};
+    value.remove_suffix(1);
+
+    std::string response;
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        if (std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::string) {
+                std::string &entryValue{entry->getString()};
+
+                const unsigned long oldEnd{entryValue.size()};
+
+                if (const unsigned long end{offset + value.size()}; end > entryValue.size()) entryValue.resize(end);
+                if (offset > oldEnd) entryValue.replace(oldEnd, offset - oldEnd, offset - oldEnd, ' ');
+
+                entryValue.replace(offset, value.size(), value);
+
+                response = std::string{integer} + std::to_string(entryValue.size());
+            } else response = wrongType;
+        } else {
+            entry = std::make_shared<Entry>(std::string{key}, std::string(offset, ' '));
+            entry->getString() += value;
+
+            response = std::string{integer} + std::to_string(entry->getString().size());
+
+            this->skiplist.insert(std::move(entry));
+        }
+    }
     const auto spanResponse{std::as_bytes(std::span{response})};
 
     return {spanResponse.cbegin(), spanResponse.cend()};

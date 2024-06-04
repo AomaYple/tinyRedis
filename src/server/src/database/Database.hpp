@@ -47,6 +47,8 @@ public:
 
     [[nodiscard]] auto setnx(std::string_view statement) -> std::vector<std::byte>;
 
+    [[nodiscard]] auto setRange(std::string_view statement) -> std::vector<std::byte>;
+
 private:
     static auto initialize() -> std::unordered_map<unsigned long, Database>;
 
