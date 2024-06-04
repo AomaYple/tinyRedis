@@ -12,4 +12,5 @@ enum class Command : unsigned char {
     set,
     get,
     getRange,
+    getSet
 };

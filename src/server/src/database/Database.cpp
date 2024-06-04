@@ -11,6 +11,8 @@
 static constexpr std::string_view ok{"OK"};
 static constexpr std::string_view integer{"(integer) "};
 static constexpr std::string_view nil{"(nil)"};
+static constexpr std::string_view wrongType{
+    "(error) WRONGTYPE Operation against a key holding the wrong kind of value"};
 
 auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> {
     const auto command{static_cast<Command>(data.front())};
@@ -43,6 +45,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return databases.at(id).get(statement);
         case Command::getRange:
             return databases.at(id).getRange(statement);
+        case Command::getSet:
+            return databases.at(id).getSet(statement);
     }
 
     return {data.cbegin(), data.cend()};
@@ -258,14 +262,13 @@ auto Database::type(const std::string_view key) -> std::vector<std::byte> {
 
 auto Database::set(const std::string_view statement) -> std::vector<std::byte> {
     const unsigned long result{statement.find(' ')};
-    const std::string_view key{statement.substr(0, result)};
     std::string_view value{statement.substr(result + 2)};
     value.remove_suffix(1);
 
     {
         const std::lock_guard lockGuard{this->lock};
 
-        this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
+        this->skiplist.insert(std::make_shared<Entry>(std::string{statement.substr(0, result)}, std::string{value}));
     }
 
     std::vector buffer{std::byte{'"'}};
@@ -283,7 +286,7 @@ auto Database::get(const std::string_view key) -> std::vector<std::byte> {
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) response = '"' + entry->getString() + '"';
-            else response = "(error) WRONGTYPE Operation against a key holding the wrong kind of value";
+            else response = wrongType;
         } else response = nil;
     }
 
@@ -314,6 +317,27 @@ auto Database::getRange(std::string_view statement) -> std::vector<std::byte> {
     }
     response += '"';
 
+    const auto spanResponse{std::as_bytes(std::span{response})};
+
+    return {spanResponse.cbegin(), spanResponse.cend()};
+}
+
+auto Database::getSet(const std::string_view statement) -> std::vector<std::byte> {
+    const unsigned long result{statement.find(' ')};
+    std::string_view value{statement.substr(result + 2)};
+    value.remove_suffix(1);
+
+    std::string response;
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(statement.substr(0, result))}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::string) {
+                response = '"' + entry->getString() + '"';
+                entry->getString() = value;
+            } else response = wrongType;
+        } else response = nil;
+    }
     const auto spanResponse{std::as_bytes(std::span{response})};
 
     return {spanResponse.cbegin(), spanResponse.cend()};

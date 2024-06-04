@@ -41,6 +41,8 @@ public:
 
     [[nodiscard]] auto getRange(std::string_view statement) -> std::vector<std::byte>;
 
+    [[nodiscard]] auto getSet(std::string_view statement) -> std::vector<std::byte>;
+
 private:
     static auto initialize() -> std::unordered_map<unsigned long, Database>;
 
