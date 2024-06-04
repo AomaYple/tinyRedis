@@ -53,6 +53,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return databases.at(id).setnx(statement);
         case Command::setRange:
             return databases.at(id).setRange(statement);
+        case Command::strlen:
+            return databases.at(id).strlen(statement);
     }
 
     return {data.cbegin(), data.cend()};
@@ -431,6 +433,22 @@ auto Database::setRange(std::string_view statement) -> std::vector<std::byte> {
 
             this->skiplist.insert(std::move(entry));
         }
+    }
+    const auto spanResponse{std::as_bytes(std::span{response})};
+
+    return {spanResponse.cbegin(), spanResponse.cend()};
+}
+
+auto Database::strlen(const std::string_view key) -> std::vector<std::byte> {
+    std::string response;
+    {
+        const std::shared_lock sharedLock{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::string)
+                response = std::string{integer} + std::to_string(entry->getString().size());
+            else response = wrongType;
+        } else response = std::string{integer} + "0";
     }
     const auto spanResponse{std::as_bytes(std::span{response})};
 
