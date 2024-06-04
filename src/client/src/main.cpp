@@ -82,6 +82,7 @@ auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std:
     else if (command == "GET") commandType = Command::get;
     else if (command == "GETRANGE") commandType = Command::getRange;
     else if (command == "GETSET") commandType = Command::getSet;
+    else if (command == "MGET") commandType = Command::mget;
 
     std::vector buffer{std::byte{std::to_underlying(commandType)}};
 

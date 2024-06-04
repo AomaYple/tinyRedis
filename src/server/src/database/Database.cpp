@@ -47,6 +47,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return databases.at(id).getRange(statement);
         case Command::getSet:
             return databases.at(id).getSet(statement);
+        case Command::mget:
+            return databases.at(id).mget(statement);
     }
 
     return {data.cbegin(), data.cend()};
@@ -338,6 +340,30 @@ auto Database::getSet(const std::string_view statement) -> std::vector<std::byte
             } else response = wrongType;
         } else response = nil;
     }
+    const auto spanResponse{std::as_bytes(std::span{response})};
+
+    return {spanResponse.cbegin(), spanResponse.cend()};
+}
+
+auto Database::mget(const std::string_view keys) -> std::vector<std::byte> {
+    std::string response;
+    {
+        unsigned long count{1};
+
+        const std::shared_lock sharedLock{this->lock};
+
+        for (const auto &view : keys | std::views::split(' ')) {
+            response += std::to_string(count++) + ") ";
+
+            if (const std::shared_ptr entry{this->skiplist.find(std::string_view{view})};
+                entry != nullptr && entry->getType() == Entry::Type::string)
+                response += '"' + entry->getString() + '"';
+            else response += nil;
+
+            response += '\n';
+        }
+    }
+    response.pop_back();
     const auto spanResponse{std::as_bytes(std::span{response})};
 
     return {spanResponse.cbegin(), spanResponse.cend()};
