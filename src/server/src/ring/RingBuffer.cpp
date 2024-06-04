@@ -4,7 +4,7 @@
 
 #include <utility>
 
-RingBuffer::RingBuffer(std::shared_ptr<Ring> ring, unsigned int entries, unsigned int size, int id) :
+RingBuffer::RingBuffer(std::shared_ptr<Ring> ring, const unsigned int entries, const unsigned int size, const int id) :
     ring{std::move(ring)}, handle{this->ring->setupRingBuffer(entries, id)},
     buffers{entries, std::vector<std::byte>{size}}, id{id}, mask{io_uring_buf_ring_mask(entries)} {
     for (unsigned short i{}; i < static_cast<decltype(i)>(this->buffers.size()); ++i) this->add(i);
@@ -37,7 +37,7 @@ auto RingBuffer::getHandle() const noexcept -> io_uring_buf_ring * { return this
 
 auto RingBuffer::getId() const noexcept -> int { return this->id; }
 
-auto RingBuffer::readFromBuffer(unsigned short index, unsigned int size) -> std::span<const std::byte> {
+auto RingBuffer::readFromBuffer(const unsigned short index, const unsigned int size) -> std::span<const std::byte> {
     std::vector<std::byte> &buffer{this->buffers[index]};
 
     buffer.resize(size * 2);
@@ -52,7 +52,7 @@ auto RingBuffer::destroy() const -> void {
     if (this->handle != nullptr) this->ring->freeRingBuffer(this->handle, this->buffers.size(), this->id);
 }
 
-auto RingBuffer::add(unsigned short index) noexcept -> void {
+auto RingBuffer::add(const unsigned short index) noexcept -> void {
     io_uring_buf_ring_add(this->handle, this->buffers[index].data(), this->buffers[index].size(), index, this->mask,
                           this->offset++);
 }

@@ -2,9 +2,9 @@
 
 #include <linux/io_uring.h>
 
-Client::Client(int fileDescriptor) noexcept : FileDescriptor{fileDescriptor} {}
+Client::Client(const int fileDescriptor) noexcept : FileDescriptor{fileDescriptor} {}
 
-auto Client::receive(int ringBufferId) const noexcept -> Awaiter {
+auto Client::receive(const int ringBufferId) const noexcept -> Awaiter {
     Awaiter awaiter;
     awaiter.setSubmission(Submission{
         this->getFileDescriptor(),
@@ -16,7 +16,7 @@ auto Client::receive(int ringBufferId) const noexcept -> Awaiter {
     return awaiter;
 }
 
-auto Client::send(std::span<const std::byte> data) const noexcept -> Awaiter {
+auto Client::send(const std::span<const std::byte> data) const noexcept -> Awaiter {
     Awaiter awaiter;
     awaiter.setSubmission(Submission{
         this->getFileDescriptor(),

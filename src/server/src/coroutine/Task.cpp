@@ -14,11 +14,11 @@ auto Task::promise_type::setSubmission(const Submission &submission) noexcept ->
 
 auto Task::promise_type::getSubmission() const noexcept -> const Submission & { return this->submission; }
 
-auto Task::promise_type::setOutcome(Outcome outcome) noexcept -> void { this->outcome = outcome; }
+auto Task::promise_type::setOutcome(const Outcome outcome) noexcept -> void { this->outcome = outcome; }
 
 auto Task::promise_type::getOutcome() const noexcept -> Outcome { return this->outcome; }
 
-Task::Task(std::coroutine_handle<promise_type> handle) noexcept : handle{handle} {}
+Task::Task(const std::coroutine_handle<promise_type> handle) noexcept : handle{handle} {}
 
 Task::Task(Task &&other) noexcept : handle{std::exchange(other.handle, nullptr)} {}
 
@@ -36,7 +36,7 @@ Task::~Task() { this->destroy(); }
 
 auto Task::getSubmission() const -> const Submission & { return this->handle.promise().getSubmission(); }
 
-auto Task::resume(Outcome outcome) const -> void {
+auto Task::resume(const Outcome outcome) const -> void {
     this->handle.promise().setOutcome(outcome);
     this->handle.resume();
 }

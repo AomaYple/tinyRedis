@@ -8,10 +8,8 @@ Skiplist::Skiplist(std::span<const std::byte> serialization) {
         const auto size{*reinterpret_cast<const unsigned long *>(serialization.data())};
         serialization = serialization.subspan(sizeof(size));
 
-        auto entry{std::make_shared<Entry>(serialization.subspan(0, size))};
+        this->insert(std::make_shared<Entry>(serialization.subspan(0, size)));
         serialization = serialization.subspan(size);
-
-        this->insert(std::move(entry));
     }
 }
 
@@ -41,7 +39,7 @@ auto Skiplist::operator=(Skiplist &&other) noexcept -> Skiplist & {
 
 Skiplist::~Skiplist() { this->destroy(); }
 
-auto Skiplist::find(std::string_view key) const noexcept -> std::shared_ptr<Entry> {
+auto Skiplist::find(const std::string_view key) const noexcept -> std::shared_ptr<Entry> {
     Node *node{this->start};
     while (node != nullptr) {
         Node *const next{node->next}, *const down{node->down};
@@ -76,15 +74,15 @@ auto Skiplist::insert(std::shared_ptr<Entry> &&entry) const -> void {
     }
 }
 
-auto Skiplist::erase(std::string_view key) const noexcept -> bool {
+auto Skiplist::erase(const std::string_view key) const noexcept -> bool {
     bool success{};
 
     Node *node{this->start};
     while (node != nullptr) {
         while (node->next != nullptr && key > node->next->entry->getKey()) node = node->next;
 
-        Node *const next{node->next}, *const down{node->down};
-        if (next != nullptr && key == next->entry->getKey()) {
+        Node *const down{node->down};
+        if (const Node *const next{node->next}; next != nullptr && key == next->entry->getKey()) {
             const Node *const deleteNode{next};
             node->next = next->next;
             delete deleteNode;
@@ -117,7 +115,7 @@ auto Skiplist::initlialize() -> Node * {
     Node *start{}, *previous{};
     const auto entry{std::make_shared<Entry>(std::string{}, std::string{})};
     for (unsigned char i{maxLevel}; i > 0; --i) {
-        Node *const node{
+        const auto node{
             new Node{static_cast<decltype(i)>(i - 1), entry}
         };
         if (previous != nullptr) {
@@ -152,7 +150,7 @@ auto Skiplist::copy() const -> Node * {
 
         Node *subNewNode{}, *subNewPrevious{};
         while (node != nullptr) {
-            Node *const newNode{
+            const auto newNode{
                 new Node{node->level, std::make_shared<Entry>(*node->entry)}
             };
 

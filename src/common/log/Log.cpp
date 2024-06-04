@@ -3,8 +3,8 @@
 #include <chrono>
 #include <utility>
 
-Log::Log(Level level, std::string &&text, std::source_location sourceLocation,
-         std::chrono::system_clock::time_point timestamp, std::jthread::id joinThreadId) noexcept :
+Log::Log(const Level level, std::string &&text, const std::source_location sourceLocation,
+         const std::chrono::system_clock::time_point timestamp, const std::jthread::id joinThreadId) noexcept :
     level{level}, text{std::move(text)}, sourceLocation{sourceLocation}, timestamp{timestamp},
     joinThreadId{joinThreadId} {}
 

@@ -43,7 +43,7 @@ auto main() -> int {
     return 0;
 }
 
-auto shieldSignal(std::source_location sourceLocation) -> void {
+auto shieldSignal(const std::source_location sourceLocation) -> void {
     struct sigaction signalAction {};
 
     signalAction.sa_handler = SIG_IGN;
@@ -80,7 +80,7 @@ auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std:
     else if (command == "TYPE") commandType = Command::type;
     else if (command == "SET") commandType = Command::set;
     else if (command == "GET") commandType = Command::get;
-    else if (command == "GETRANGE") commandType = Command::getrange;
+    else if (command == "GETRANGE") commandType = Command::getRange;
 
     std::vector buffer{std::byte{std::to_underlying(commandType)}};
 

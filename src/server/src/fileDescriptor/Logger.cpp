@@ -6,7 +6,7 @@
 #include <fcntl.h>
 #include <linux/io_uring.h>
 
-auto Logger::create(std::source_location sourceLocation) -> int {
+auto Logger::create(const std::source_location sourceLocation) -> int {
     const int result{openat(AT_FDCWD, "log.log", O_CREAT | O_TRUNC | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR)};
     if (result == -1) {
         throw Exception{
@@ -17,7 +17,7 @@ auto Logger::create(std::source_location sourceLocation) -> int {
     return result;
 }
 
-Logger::Logger(int fileDescriptor) : FileDescriptor{fileDescriptor} {}
+Logger::Logger(const int fileDescriptor) : FileDescriptor{fileDescriptor} {}
 
 auto Logger::push(Log &&log) -> void { this->logs.push(std::move(log)); }
 

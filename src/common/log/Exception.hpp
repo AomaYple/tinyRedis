@@ -2,7 +2,7 @@
 
 #include "Log.hpp"
 
-class Exception : public std::exception {
+class Exception final : public std::exception {
 public:
     explicit Exception(Log &&log = Log{});
 

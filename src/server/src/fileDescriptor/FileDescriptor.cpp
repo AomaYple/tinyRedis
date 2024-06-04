@@ -2,7 +2,7 @@
 
 #include <linux/io_uring.h>
 
-FileDescriptor::FileDescriptor(int fileDescriptor) noexcept : fileDescriptor{fileDescriptor} {}
+FileDescriptor::FileDescriptor(const int fileDescriptor) noexcept : fileDescriptor{fileDescriptor} {}
 
 auto FileDescriptor::getFileDescriptor() const noexcept -> int { return this->fileDescriptor; }
 
