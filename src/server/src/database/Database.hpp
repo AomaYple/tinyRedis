@@ -41,8 +41,6 @@ public:
 
     [[nodiscard]] auto getRange(std::string_view statement) -> std::vector<std::byte>;
 
-    [[nodiscard]] auto getSet(std::string_view statement) -> std::vector<std::byte>;
-
     [[nodiscard]] auto mget(std::string_view keys) -> std::vector<std::byte>;
 
     [[nodiscard]] auto setnx(std::string_view statement) -> std::vector<std::byte>;

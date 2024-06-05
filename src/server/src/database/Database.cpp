@@ -45,8 +45,6 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return databases.at(id).get(statement);
         case Command::getRange:
             return databases.at(id).getRange(statement);
-        case Command::getSet:
-            return databases.at(id).getSet(statement);
         case Command::mget:
             return databases.at(id).mget(statement);
         case Command::setnx:
@@ -332,47 +330,48 @@ auto Database::getRange(std::string_view statement) -> std::vector<std::byte> {
     return {spanResponse.cbegin(), spanResponse.cend()};
 }
 
-auto Database::getSet(const std::string_view statement) -> std::vector<std::byte> {
-    const unsigned long result{statement.find(' ')};
-    const std::string_view key{statement.substr(0, result)};
-
-    std::vector getResult{this->get(key)};
-    this->set(statement);
-
-    return getResult;
-}
-
 auto Database::mget(const std::string_view keys) -> std::vector<std::byte> {
-    std::vector<std::byte> buffer;
-    unsigned long count{1};
+    std::string response;
+    {
+        unsigned long count{1};
 
-    for (const auto &view : keys | std::views::split(' ')) {
-        const std::string stringCount{std::to_string(count++) + ") "};
-        const auto spanCount{std::as_bytes(std::span{stringCount})};
-        buffer.insert(buffer.cend(), spanCount.cbegin(), spanCount.cend());
+        const std::shared_lock sharedLock{this->lock};
 
-        const std::vector result{this->get(std::string_view{view})};
-        buffer.insert(buffer.cend(), result.cbegin(), result.cend());
+        for (const auto &view : keys | std::views::split(' ')) {
+            response += std::to_string(count++) + ") ";
 
-        buffer.emplace_back(std::byte{'\n'});
+            if (const std::shared_ptr entry{this->skiplist.find(std::string_view{view})};
+                entry != nullptr && entry->getType() == Entry::Type::string)
+                response += '"' + entry->getString() + '"';
+            else response += nil;
+
+            response += '\n';
+        }
     }
-    buffer.pop_back();
+    response.pop_back();
+    const auto spanResponse{std::as_bytes(std::span{response})};
 
-    return buffer;
+    return {spanResponse.cbegin(), spanResponse.cend()};
 }
 
 auto Database::setnx(const std::string_view statement) -> std::vector<std::byte> {
     const unsigned long result{statement.find(' ')};
-    const std::string_view key{statement.substr(0, result)}, value{statement.substr(result + 1)};
+    std::string_view value{statement.substr(result + 2)};
+    value.remove_suffix(1);
 
-    const std::vector getResult{this->get(key)};
     std::string response{integer};
+    bool success{};
+    {
+        const std::lock_guard lockGuard{this->lock};
 
-    if (std::string_view{reinterpret_cast<const char *>(getResult.data()), getResult.size()} == nil) {
-        this->set(std::string{key} + ' ' + std::string{value});
-        response += '1';
-    } else response += '0';
+        if (this->skiplist.find(statement.substr(0, result)) == nullptr) {
+            this->skiplist.insert(
+                std::make_shared<Entry>(std::string{statement.substr(0, result)}, std::string{value}));
 
+            success = true;
+        }
+    }
+    response += success ? '1' : '0';
     const auto spanResponse{std::as_bytes(std::span{response})};
 
     return {spanResponse.cbegin(), spanResponse.cend()};
@@ -420,14 +419,16 @@ auto Database::setRange(std::string_view statement) -> std::vector<std::byte> {
 }
 
 auto Database::strlen(const std::string_view key) -> std::vector<std::byte> {
-    std::vector result{this->get(key)};
-    const std::string_view resultView{reinterpret_cast<const char *>(result.data()), result.size()};
-    if (resultView == wrongType) return result;
+    std::string response;
+    {
+        const std::shared_lock sharedLock{this->lock};
 
-    std::string response{integer};
-    if (resultView != nil) response += std::to_string(resultView.size() - 2);
-    else response += '0';
-
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::string)
+                response = std::string{integer} + std::to_string(entry->getString().size());
+            else response = wrongType;
+        } else response = std::string{integer} + "0";
+    }
     const auto spanResponse{std::as_bytes(std::span{response})};
 
     return {spanResponse.cbegin(), spanResponse.cend()};
@@ -437,19 +438,24 @@ auto Database::mset(std::string_view statement) -> std::vector<std::byte> {
     while (!statement.empty()) {
         unsigned long result{statement.find(' ')};
         const std::string_view key{statement.substr(0, result)};
-        statement.remove_prefix(result + 1);
+        statement.remove_prefix(result + 2);
 
         result = statement.find(' ');
         std::string_view value;
         if (result != std::string_view::npos) {
-            value = statement.substr(0, result);
+            value = statement.substr(0, result - 1);
             statement.remove_prefix(result + 1);
         } else {
+            statement.remove_suffix(1);
             value = statement;
             statement = {};
         }
 
-        this->set(std::string{key} + ' ' + std::string{value});
+        {
+            const std::lock_guard lockGuard{this->lock};
+
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
+        }
     }
 
     const auto spanOk{std::as_bytes(std::span{ok})};
