@@ -9,19 +9,19 @@
 #include <utility>
 
 auto shieldSignal(std::source_location sourceLocation = std::source_location::current()) -> void;
+
 auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std::byte>;
 
 auto main() -> int {
     shieldSignal();
 
     const Connection connection;
-    const std::pair peerName{connection.getPeerName()};
+    const auto [host, port]{connection.getPeerName()};
 
     unsigned long id{};
     while (true) {
-        const std::string serverInformation{std::format("tinyRedis {}:{}{}{}{}> ", peerName.first, peerName.second,
-                                                        id == 0 ? "" : "[", id == 0 ? "" : std::to_string(id),
-                                                        id == 0 ? "" : "]")};
+        const std::string serverInformation{std::format("tinyRedis {}:{}{}{}{}> ", host, port, id == 0 ? "" : "[",
+                                                        id == 0 ? "" : std::to_string(id), id == 0 ? "" : "]")};
 
         std::string buffer;
         while (buffer.empty()) {
@@ -30,7 +30,7 @@ auto main() -> int {
         }
         if (buffer == "QUIT") {
             std::println("OK");
-            break;
+            return 0;
         }
 
         connection.send(formatRequest(buffer, id));
