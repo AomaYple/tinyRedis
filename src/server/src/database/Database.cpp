@@ -379,22 +379,16 @@ auto Database::mget(const std::string_view keys) -> std::vector<std::byte> {
 
 auto Database::setnx(const std::string_view statement) -> std::vector<std::byte> {
     const unsigned long result{statement.find(' ')};
-    std::string_view value{statement.substr(result + 2)};
-    value.remove_suffix(1);
+    const std::string_view key{statement.substr(0, result)}, value{statement.substr(result + 1)};
 
+    const std::vector getResult{this->get(key)};
     std::string response{integer};
-    bool success{};
-    {
-        const std::lock_guard lockGuard{this->lock};
 
-        if (this->skiplist.find(statement.substr(0, result)) == nullptr) {
-            this->skiplist.insert(
-                std::make_shared<Entry>(std::string{statement.substr(0, result)}, std::string{value}));
+    if (std::string_view{reinterpret_cast<const char *>(getResult.data()), getResult.size()} == nil) {
+        this->set(std::string{key} + ' ' + std::string{value});
+        response += '1';
+    } else response += '0';
 
-            success = true;
-        }
-    }
-    response += success ? '1' : '0';
     const auto spanResponse{std::as_bytes(std::span{response})};
 
     return {spanResponse.cbegin(), spanResponse.cend()};
@@ -471,7 +465,7 @@ auto Database::mset(std::string_view statement) -> std::vector<std::byte> {
             statement = {};
         }
 
-        this->set(std::string{key} + " " + std::string{value});
+        this->set(std::string{key} + ' ' + std::string{value});
     }
 
     const auto spanOk{std::as_bytes(std::span{ok})};
