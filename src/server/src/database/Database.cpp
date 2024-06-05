@@ -461,24 +461,19 @@ auto Database::mset(std::string_view statement) -> std::vector<std::byte> {
     while (!statement.empty()) {
         unsigned long result{statement.find(' ')};
         const std::string_view key{statement.substr(0, result)};
-        statement.remove_prefix(result + 2);
+        statement.remove_prefix(result + 1);
 
         result = statement.find(' ');
         std::string_view value;
         if (result != std::string_view::npos) {
-            value = statement.substr(0, result - 1);
+            value = statement.substr(0, result);
             statement.remove_prefix(result + 1);
         } else {
-            statement.remove_suffix(1);
             value = statement;
             statement = {};
         }
 
-        {
-            const std::lock_guard lockGuard{this->lock};
-
-            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
-        }
+        this->set(std::string{key} + " " + std::string{value});
     }
 
     const auto spanOk{std::as_bytes(std::span{ok})};
