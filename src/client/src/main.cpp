@@ -69,6 +69,7 @@ auto main() -> int {
             std::println("{}", std::string_view{reinterpret_cast<const char *>(data.data()), data.size()});
         }
     }
+
     return 0;
 }
 
