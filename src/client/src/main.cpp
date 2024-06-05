@@ -19,26 +19,56 @@ auto main() -> int {
     const auto [host, port]{connection.getPeerName()};
 
     unsigned long id{};
+    bool isTransaction{};
+    std::vector<std::string> transactions;
+
     while (true) {
         std::print("tinyRedis {}:{}{}{}{}> ", host, port, id == 0 ? "" : "[", id == 0 ? "" : std::to_string(id),
                    id == 0 ? "" : "]");
 
-        std::string buffer;
-        std::getline(std::cin, buffer);
+        std::string inputBuffer;
+        std::getline(std::cin, inputBuffer);
 
-        if (buffer.empty()) continue;
-
-        if (buffer == "QUIT") {
+        if (inputBuffer.empty()) continue;
+        if (inputBuffer == "QUIT") {
             std::println("OK");
-            return 0;
+
+            break;
         }
+        if (inputBuffer == "MULTI") {
+            isTransaction = true;
+            std::println("OK");
 
-        connection.send(formatRequest(buffer, id));
+            continue;
+        }
+        if (inputBuffer == "DISCARD") {
+            isTransaction = false;
+            transactions.clear();
+            std::println("OK");
 
-        const std::vector data{connection.receive()};
-        std::println("{}", std::string_view{reinterpret_cast<const char *>(data.data()), data.size()});
+            continue;
+        }
+        if (inputBuffer == "EXEC") {
+            for (unsigned long i{}; i < transactions.size(); ++i) {
+                connection.send(formatRequest(transactions[i], id));
+                const std::vector data{connection.receive()};
+
+                std::println("{}{}", std::to_string(i + 1) + ") ",
+                             std::string_view{reinterpret_cast<const char *>(data.data()), data.size()});
+            }
+
+            transactions.clear();
+            isTransaction = false;
+        } else if (isTransaction) {
+            transactions.emplace_back(inputBuffer);
+            std::println("QUEUED");
+        } else {
+            connection.send(formatRequest(inputBuffer, id));
+            const std::vector data{connection.receive()};
+
+            std::println("{}", std::string_view{reinterpret_cast<const char *>(data.data()), data.size()});
+        }
     }
-
     return 0;
 }
 
