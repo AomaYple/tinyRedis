@@ -33,14 +33,10 @@ struct Submission {
         unsigned int zeroCopyFlags;
     };
 
-    struct Cancel {
-        int flags;
-    };
-
     struct Close {};
 
     int fileDescriptor;
     unsigned int flags;
     unsigned long userData;
-    std::variant<Write, Accept, Read, Receive, Send, Cancel, Close> parameter;
+    std::variant<Write, Accept, Read, Receive, Send, Close> parameter;
 };

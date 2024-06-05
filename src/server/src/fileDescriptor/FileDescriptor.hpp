@@ -18,8 +18,6 @@ public:
 
     [[nodiscard]] auto getFileDescriptor() const noexcept -> int;
 
-    [[nodiscard]] auto cancel() const noexcept -> Awaiter;
-
     [[nodiscard]] auto close() const noexcept -> Awaiter;
 
 private:

@@ -27,54 +27,6 @@ auto Timer::timing() noexcept -> Awaiter {
     return awaiter;
 }
 
-auto Timer::add(const int fileDescriptor, const std::chrono::seconds seconds) -> void {
-    const auto point{static_cast<decltype(this->now)>(seconds % (this->wheel.size() - 1))};
-
-    this->wheel[point.count()].emplace(fileDescriptor, (seconds / (this->wheel.size() - 1)).count());
-    this->location.emplace(fileDescriptor, point);
-}
-
-auto Timer::update(const int fileDescriptor, const std::chrono::seconds seconds) -> void {
-    const auto point{static_cast<decltype(this->now)>(seconds % (this->wheel.size() - 1))};
-
-    this->wheel[this->location.at(fileDescriptor).count()].erase(fileDescriptor);
-    this->wheel[point.count()].emplace(fileDescriptor, (seconds / (this->wheel.size() - 1)).count());
-
-    this->location.at(fileDescriptor) = point;
-}
-
-auto Timer::remove(const int fileDescriptor) -> void {
-    if (const auto result{this->location.find(fileDescriptor)}; result != this->location.cend()) {
-        this->wheel[result->second.count()].erase(fileDescriptor);
-        this->location.erase(result);
-    }
-}
-
-auto Timer::clearTimeout() -> std::vector<int> {
-    std::vector<int> result;
-
-    while (this->timeout > 0) {
-        std::unordered_map<int, unsigned long> &wheelPoint{this->wheel[this->now.count()]};
-        for (auto element{wheelPoint.begin()}; element != wheelPoint.end();) {
-            if (element->second == 0) {
-                result.emplace_back(element->first);
-                this->location.erase(element->first);
-
-                element = wheelPoint.erase(element);
-            } else {
-                --element->second;
-                ++element;
-            }
-        }
-
-        ++this->now;
-        this->now %= static_cast<decltype(this->now)>(this->wheel.size());
-        --this->timeout;
-    }
-
-    return result;
-}
-
 auto Timer::createTimerFileDescriptor(const std::source_location sourceLocation) -> int {
     const int fileDescriptor{timerfd_create(CLOCK_MONOTONIC, 0)};
     if (fileDescriptor == -1) {

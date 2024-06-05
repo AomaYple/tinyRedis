@@ -211,13 +211,6 @@ auto Scheduler::send(const Client &client, std::vector<std::byte> &&data, const 
     this->eraseCurrentTask();
 }
 
-auto Scheduler::cancel(const Client &client, const std::source_location sourceLocation) -> Task {
-    if (const auto [result, flags]{co_await client.cancel()}; result < 0)
-        this->logger->push(Log{Log::Level::warn, std::strerror(std::abs(result)), sourceLocation});
-
-    this->eraseCurrentTask();
-}
-
 auto Scheduler::close(const int fileDescriptor, const std::source_location sourceLocation) -> Task {
     Outcome outcome;
     if (fileDescriptor == this->logger->getFileDescriptor()) outcome = co_await this->logger->close();
