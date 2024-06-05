@@ -354,27 +354,22 @@ auto Database::getSet(const std::string_view statement) -> std::vector<std::byte
 }
 
 auto Database::mget(const std::string_view keys) -> std::vector<std::byte> {
-    std::string response;
-    {
-        unsigned long count{1};
+    std::vector<std::byte> buffer;
+    unsigned long count{1};
 
-        const std::shared_lock sharedLock{this->lock};
+    for (const auto &view : keys | std::views::split(' ')) {
+        const std::string stringCount{std::to_string(count++) + ") "};
+        const auto spanCount{std::as_bytes(std::span{stringCount})};
+        buffer.insert(buffer.cend(), spanCount.cbegin(), spanCount.cend());
 
-        for (const auto &view : keys | std::views::split(' ')) {
-            response += std::to_string(count++) + ") ";
+        const std::vector result{this->get(std::string_view{view})};
+        buffer.insert(buffer.cend(), result.cbegin(), result.cend());
 
-            if (const std::shared_ptr entry{this->skiplist.find(std::string_view{view})};
-                entry != nullptr && entry->getType() == Entry::Type::string)
-                response += '"' + entry->getString() + '"';
-            else response += nil;
-
-            response += '\n';
-        }
+        buffer.emplace_back(std::byte{'\n'});
     }
-    response.pop_back();
-    const auto spanResponse{std::as_bytes(std::span{response})};
+    buffer.pop_back();
 
-    return {spanResponse.cbegin(), spanResponse.cend()};
+    return buffer;
 }
 
 auto Database::setnx(const std::string_view statement) -> std::vector<std::byte> {
