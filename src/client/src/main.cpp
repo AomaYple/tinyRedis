@@ -20,14 +20,14 @@ auto main() -> int {
 
     unsigned long id{};
     while (true) {
-        const std::string serverInformation{std::format("tinyRedis {}:{}{}{}{}> ", host, port, id == 0 ? "" : "[",
-                                                        id == 0 ? "" : std::to_string(id), id == 0 ? "" : "]")};
+        std::print("tinyRedis {}:{}{}{}{}> ", host, port, id == 0 ? "" : "[", id == 0 ? "" : std::to_string(id),
+                   id == 0 ? "" : "]");
 
         std::string buffer;
-        while (buffer.empty()) {
-            std::print("{}", serverInformation);
-            std::getline(std::cin, buffer);
-        }
+        std::getline(std::cin, buffer);
+
+        if (buffer.empty()) continue;
+
         if (buffer == "QUIT") {
             std::println("OK");
             return 0;
