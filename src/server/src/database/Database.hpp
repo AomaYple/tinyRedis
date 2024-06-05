@@ -51,6 +51,8 @@ public:
 
     [[nodiscard]] auto strlen(std::string_view key) -> std::vector<std::byte>;
 
+    [[nodiscard]] auto mset(std::string_view statement) -> std::vector<std::byte>;
+
 private:
     static auto initialize() -> std::unordered_map<unsigned long, Database>;
 

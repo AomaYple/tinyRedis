@@ -55,6 +55,8 @@ auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> 
             return databases.at(id).setRange(statement);
         case Command::strlen:
             return databases.at(id).strlen(statement);
+        case Command::mset:
+            return databases.at(id).mset(statement);
     }
 
     return {data.cbegin(), data.cend()};
@@ -453,6 +455,38 @@ auto Database::strlen(const std::string_view key) -> std::vector<std::byte> {
     const auto spanResponse{std::as_bytes(std::span{response})};
 
     return {spanResponse.cbegin(), spanResponse.cend()};
+}
+
+auto Database::mset(std::string_view statement) -> std::vector<std::byte> {
+    while (!statement.empty()) {
+        unsigned long result{statement.find(' ')};
+        const std::string_view key{statement.substr(0, result)};
+        statement.remove_prefix(result + 2);
+
+        result = statement.find(' ');
+        std::string_view value;
+        if (result != std::string_view::npos) {
+            value = statement.substr(0, result - 1);
+            statement.remove_prefix(result + 1);
+        } else {
+            statement.remove_suffix(1);
+            value = statement;
+            statement = {};
+        }
+
+        {
+            const std::lock_guard lockGuard{this->lock};
+
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
+        }
+    }
+
+    const auto spanOk{std::as_bytes(std::span{ok})};
+    std::vector buffer{std::byte{'"'}};
+    buffer.insert(buffer.cend(), spanOk.cbegin(), spanOk.cend());
+    buffer.emplace_back(std::byte{'"'});
+
+    return buffer;
 }
 
 auto Database::initialize() -> std::unordered_map<unsigned long, Database> {
