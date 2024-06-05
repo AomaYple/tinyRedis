@@ -334,23 +334,12 @@ auto Database::getRange(std::string_view statement) -> std::vector<std::byte> {
 
 auto Database::getSet(const std::string_view statement) -> std::vector<std::byte> {
     const unsigned long result{statement.find(' ')};
-    std::string_view value{statement.substr(result + 2)};
-    value.remove_suffix(1);
+    const std::string_view key{statement.substr(0, result)};
 
-    std::string response;
-    {
-        const std::lock_guard lockGuard{this->lock};
+    std::vector getResult{this->get(key)};
+    this->set(statement);
 
-        if (const std::shared_ptr entry{this->skiplist.find(statement.substr(0, result))}; entry != nullptr) {
-            if (entry->getType() == Entry::Type::string) {
-                response = '"' + entry->getString() + '"';
-                entry->getString() = value;
-            } else response = wrongType;
-        } else response = nil;
-    }
-    const auto spanResponse{std::as_bytes(std::span{response})};
-
-    return {spanResponse.cbegin(), spanResponse.cend()};
+    return getResult;
 }
 
 auto Database::mget(const std::string_view keys) -> std::vector<std::byte> {
