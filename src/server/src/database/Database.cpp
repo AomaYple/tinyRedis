@@ -442,16 +442,14 @@ auto Database::setRange(std::string_view statement) -> std::vector<std::byte> {
 }
 
 auto Database::strlen(const std::string_view key) -> std::vector<std::byte> {
-    std::string response;
-    {
-        const std::shared_lock sharedLock{this->lock};
+    std::vector result{this->get(key)};
+    const std::string_view resultView{reinterpret_cast<const char *>(result.data()), result.size()};
+    if (resultView == wrongType) return result;
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            if (entry->getType() == Entry::Type::string)
-                response = std::string{integer} + std::to_string(entry->getString().size());
-            else response = wrongType;
-        } else response = std::string{integer} + "0";
-    }
+    std::string response{integer};
+    if (resultView != nil) response += std::to_string(resultView.size() - 2);
+    else response += '0';
+
     const auto spanResponse{std::as_bytes(std::span{response})};
 
     return {spanResponse.cbegin(), spanResponse.cend()};
