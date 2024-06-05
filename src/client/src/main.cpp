@@ -36,8 +36,7 @@ auto main() -> int {
         connection.send(formatRequest(buffer, id));
 
         const std::vector data{connection.receive()};
-        const std::string_view response{reinterpret_cast<const char *>(data.data()), data.size()};
-        std::println("{}", response);
+        std::println("{}", std::string_view{reinterpret_cast<const char *>(data.data()), data.size()});
     }
 
     return 0;
