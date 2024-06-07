@@ -484,6 +484,14 @@ auto Database::msetnx(std::string_view statement) -> std::vector<std::byte> {
     return response;
 }
 
+auto isInteger(const std::string &integer) {
+    try {
+        std::stol(integer);
+    } catch (const std::invalid_argument &) { return false; }
+
+    return true;
+}
+
 auto Database::incr(const std::string_view key) -> std::vector<std::byte> {
     std::vector<std::byte> response;
 
@@ -491,8 +499,7 @@ auto Database::incr(const std::string_view key) -> std::vector<std::byte> {
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            if (entry->getType() == Entry::Type::string &&
-                std::ranges::all_of(entry->getString(), [](const char element) { return std::isdigit(element); })) {
+            if (entry->getType() == Entry::Type::string && isInteger(entry->getString())) {
                 const auto number{std::stol(entry->getString()) + 1};
                 entry->getString() = std::to_string(number);
 
@@ -522,8 +529,7 @@ auto Database::incrBy(std::string_view statement) -> std::vector<std::byte> {
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            if (entry->getType() == Entry::Type::string &&
-                std::ranges::all_of(entry->getString(), [](const char element) { return std::isdigit(element); })) {
+            if (entry->getType() == Entry::Type::string && isInteger(entry->getString())) {
                 const auto number{std::stol(entry->getString()) + increment};
                 entry->getString() = std::to_string(number);
 
