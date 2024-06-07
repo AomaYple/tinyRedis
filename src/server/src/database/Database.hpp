@@ -58,6 +58,8 @@ public:
 
     [[nodiscard]] auto incrBy(std::string_view statement) -> std::vector<std::byte>;
 
+    [[nodiscard]] auto decr(std::string_view key) -> std::vector<std::byte>;
+
 private:
     unsigned long id;
     Skiplist skiplist;

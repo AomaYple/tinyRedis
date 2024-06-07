@@ -549,3 +549,30 @@ auto Database::incrBy(std::string_view statement) -> std::vector<std::byte> {
 
     return response;
 }
+
+auto Database::decr(const std::string_view key) -> std::vector<std::byte> {
+    std::vector<std::byte> response;
+
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::string && isInteger(entry->getString())) {
+                const auto number{std::stol(entry->getString()) - 1};
+                entry->getString() = std::to_string(number);
+
+                response.insert(response.cend(), integer.cbegin(), integer.cend());
+                const auto spanNumber{std::as_bytes(std::span{entry->getString()})};
+                response.insert(response.cend(), spanNumber.cbegin(), spanNumber.cend());
+            } else response = wrongType;
+        } else {
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, "-1"));
+
+            response.insert(response.cend(), integer.cbegin(), integer.cend());
+            response.emplace_back(std::byte{'-'});
+            response.emplace_back(std::byte{'1'});
+        }
+    }
+
+    return response;
+}
