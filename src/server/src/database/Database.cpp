@@ -1,6 +1,8 @@
 #include "Database.hpp"
 
+#include <algorithm>
 #include <mutex>
+#include <print>
 #include <ranges>
 
 static constexpr std::array ok{std::byte{'"'}, std::byte{'O'}, std::byte{'K'}, std::byte{'"'}};
@@ -478,6 +480,33 @@ auto Database::msetnx(std::string_view statement) -> std::vector<std::byte> {
 
     std::vector response{integer};
     response.insert(response.cend(), spanCount.cbegin(), spanCount.cend());
+
+    return response;
+}
+
+auto Database::incr(const std::string_view key) -> std::vector<std::byte> {
+    std::vector<std::byte> response;
+
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::string &&
+                std::ranges::all_of(entry->getString(), [](const char element) { return std::isdigit(element); })) {
+                const auto number{std::stol(entry->getString()) + 1};
+                entry->getString() = std::to_string(number);
+
+                response.insert(response.cend(), integer.cbegin(), integer.cend());
+                const auto spanNumber{std::as_bytes(std::span{entry->getString()})};
+                response.insert(response.cend(), spanNumber.cbegin(), spanNumber.cend());
+            } else response = wrongType;
+        } else {
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, "1"));
+
+            response.insert(response.cend(), integer.cbegin(), integer.cend());
+            response.emplace_back(std::byte{'1'});
+        }
+    }
 
     return response;
 }
