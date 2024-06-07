@@ -52,6 +52,8 @@ public:
 
     [[nodiscard]] auto mset(std::string_view statement) -> std::vector<std::byte>;
 
+    [[nodiscard]] auto msetnx(std::string_view statement) -> std::vector<std::byte>;
+
 private:
     unsigned long id;
     Skiplist skiplist;

@@ -437,3 +437,47 @@ auto Database::mset(std::string_view statement) -> std::vector<std::byte> {
 
     return {ok.cbegin(), ok.cend()};
 }
+
+auto Database::msetnx(std::string_view statement) -> std::vector<std::byte> {
+    std::vector<std::pair<std::string_view, std::string_view>> entries;
+    while (!statement.empty()) {
+        unsigned long result{statement.find(' ')};
+        const auto key{statement.substr(0, result)};
+        statement.remove_prefix(result + 2);
+
+        result = statement.find(' ');
+        std::string_view value;
+        if (result != std::string_view::npos) {
+            value = statement.substr(0, result - 1);
+            statement.remove_prefix(result + 1);
+        } else {
+            statement.remove_suffix(1);
+            value = statement;
+            statement = {};
+        }
+
+        entries.emplace_back(key, value);
+
+        const std::shared_lock sharedLock{this->lock};
+
+        if (this->skiplist.find(key) != nullptr) {
+            entries.clear();
+            break;
+        }
+    }
+
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        for (const auto &[key, value] : entries)
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
+    }
+
+    const auto stringCount{std::to_string(entries.size())};
+    const auto spanCount{std::as_bytes(std::span{stringCount})};
+
+    std::vector response{integer};
+    response.insert(response.cend(), spanCount.cbegin(), spanCount.cend());
+
+    return response;
+}

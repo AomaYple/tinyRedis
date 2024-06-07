@@ -16,5 +16,6 @@ enum class Command : unsigned char {
     setnx,
     setRange,
     strlen,
-    mset
+    mset,
+    msetnx
 };
