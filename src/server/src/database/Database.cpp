@@ -510,3 +510,36 @@ auto Database::incr(const std::string_view key) -> std::vector<std::byte> {
 
     return response;
 }
+
+auto Database::incrBy(std::string_view statement) -> std::vector<std::byte> {
+    std::vector<std::byte> response;
+
+    {
+        const unsigned long result{statement.find(' ')};
+        const auto key{statement.substr(0, result)};
+        const auto increment{std::stol(std::string{statement.substr(result + 1)})};
+
+        const std::lock_guard lockGuard{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::string &&
+                std::ranges::all_of(entry->getString(), [](const char element) { return std::isdigit(element); })) {
+                const auto number{std::stol(entry->getString()) + increment};
+                entry->getString() = std::to_string(number);
+
+                response.insert(response.cend(), integer.cbegin(), integer.cend());
+                const auto spanNumber{std::as_bytes(std::span{entry->getString()})};
+                response.insert(response.cend(), spanNumber.cbegin(), spanNumber.cend());
+            } else response = wrongType;
+        } else {
+            const auto number{std::to_string(increment)};
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{number}));
+
+            response.insert(response.cend(), integer.cbegin(), integer.cend());
+            const auto spanNumber{std::as_bytes(std::span{number})};
+            response.insert(response.cend(), spanNumber.cbegin(), spanNumber.cend());
+        }
+    }
+
+    return response;
+}

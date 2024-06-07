@@ -154,6 +154,11 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
             this->record(requestCopy);
 
             break;
+        case Command::incrby:
+            response = database.incrBy(statement);
+            this->record(requestCopy);
+
+            break;
     }
 
     return response;

@@ -18,5 +18,6 @@ enum class Command : unsigned char {
     strlen,
     mset,
     msetnx,
-    incr
+    incr,
+    incrby
 };
