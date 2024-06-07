@@ -1,10 +1,5 @@
 #include "Database.hpp"
 
-#include "../../../common/command/Command.hpp"
-#include "../../../common/log/Exception.hpp"
-
-#include <filesystem>
-#include <fstream>
 #include <mutex>
 #include <ranges>
 
@@ -23,57 +18,7 @@ static const std::vector wrongType{[] {
     return std::vector<std::byte>{spanWrongType.cbegin(), spanWrongType.cend()};
 }()};
 
-auto Database::query(std::span<const std::byte> data) -> std::vector<std::byte> {
-    const auto command{static_cast<Command>(data.front())};
-    data = data.subspan(sizeof(command));
-
-    const auto id{*reinterpret_cast<const unsigned long *>(data.data())};
-    data = data.subspan(sizeof(id));
-
-    const std::string_view statement{reinterpret_cast<const char *>(data.data()), data.size()};
-    switch (command) {
-        case Command::select:
-            return select(id);
-        case Command::del:
-            return databases.at(id).del(statement);
-        case Command::dump:
-            return databases.at(id).dump(statement);
-        case Command::exists:
-            return databases.at(id).exists(statement);
-        case Command::move:
-            return databases.at(id).move(statement);
-        case Command::rename:
-            return databases.at(id).rename(statement);
-        case Command::renamenx:
-            return databases.at(id).renamenx(statement);
-        case Command::type:
-            return databases.at(id).type(statement);
-        case Command::set:
-            return databases.at(id).set(statement);
-        case Command::get:
-            return databases.at(id).get(statement);
-        case Command::getRange:
-            return databases.at(id).getRange(statement);
-        case Command::mget:
-            return databases.at(id).mget(statement);
-        case Command::setnx:
-            return databases.at(id).setnx(statement);
-        case Command::setRange:
-            return databases.at(id).setRange(statement);
-        case Command::strlen:
-            return databases.at(id).strlen(statement);
-        case Command::mset:
-            return databases.at(id).mset(statement);
-    }
-
-    return {data.cbegin(), data.cend()};
-}
-
-auto Database::select(const unsigned long id) -> std::vector<std::byte> {
-    if (!databases.contains(id)) databases.emplace(id, Database{id});
-
-    return {ok.cbegin() + 1, ok.end() - 1};
-}
+Database::Database(const unsigned long id, const std::span<const std::byte> data) : id{id}, skiplist{data} {}
 
 Database::Database(Database &&other) noexcept {
     const std::lock_guard lockGuard{other.lock};
@@ -93,11 +38,16 @@ auto Database::operator=(Database &&other) noexcept -> Database & {
     return *this;
 }
 
-Database::~Database() {
-    const std::vector serialization{this->skiplist.serialize()};
+auto Database::serialize() -> std::vector<std::byte> {
+    std::vector<std::byte> data{sizeof(this->id)};
+    *reinterpret_cast<decltype(this->id) *>(data.data()) = this->id;
 
-    std::ofstream file{filepathPrefix + std::to_string(this->id) + ".db", std::ios::binary};
-    file.write(reinterpret_cast<const char *>(serialization.data()), static_cast<long>(serialization.size()));
+    const std::shared_lock sharedLock{this->lock};
+
+    const std::vector serialization{this->skiplist.serialize()};
+    data.insert(data.cend(), serialization.cbegin(), serialization.cend());
+
+    return data;
 }
 
 auto Database::del(const std::string_view keys) -> std::vector<std::byte> {
@@ -157,13 +107,14 @@ auto Database::exists(const std::string_view keys) -> std::vector<std::byte> {
     return response;
 }
 
-auto Database::move(const std::string_view statment) -> std::vector<std::byte> {
-    const unsigned long result{statment.find(' ')};
-    const std::string_view key{statment.substr(0, result)};
+auto Database::move(std::unordered_map<unsigned long, Database> &databases, const std::string_view statement)
+    -> std::vector<std::byte> {
+    const unsigned long result{statement.find(' ')};
+    const auto key{statement.substr(0, result)};
 
     bool success{};
     {
-        if (const auto targetResult{databases.find(std::stoul(std::string{statment.substr(result + 1)}))};
+        if (const auto targetResult{databases.find(std::stoul(std::string{statement.substr(result + 1)}))};
             targetResult != databases.cend()) {
             Database &target{targetResult->second};
 
@@ -187,7 +138,7 @@ auto Database::move(const std::string_view statment) -> std::vector<std::byte> {
 
 auto Database::rename(const std::string_view statement) -> std::vector<std::byte> {
     const unsigned long result{statement.find(' ')};
-    const std::string_view key{statement.substr(0, result)}, newKey{statement.substr(result + 1)};
+    const auto key{statement.substr(0, result)}, newKey{statement.substr(result + 1)};
 
     std::vector<std::byte> response;
 
@@ -214,7 +165,7 @@ auto Database::rename(const std::string_view statement) -> std::vector<std::byte
 
 auto Database::renamenx(const std::string_view statement) -> std::vector<std::byte> {
     const unsigned long result{statement.find(' ')};
-    const std::string_view key{statement.substr(0, result)}, newKey{statement.substr(result + 1)};
+    const auto key{statement.substr(0, result)}, newKey{statement.substr(result + 1)};
 
     bool success{};
     {
@@ -275,7 +226,7 @@ auto Database::type(const std::string_view key) -> std::vector<std::byte> {
 
 auto Database::set(const std::string_view statement) -> std::vector<std::byte> {
     const unsigned long result{statement.find(' ')};
-    std::string_view value{statement.substr(result + 2)};
+    auto value{statement.substr(result + 2)};
     value.remove_suffix(1);
 
     {
@@ -310,7 +261,7 @@ auto Database::get(const std::string_view key) -> std::vector<std::byte> {
 
 auto Database::getRange(std::string_view statement) -> std::vector<std::byte> {
     unsigned long result{statement.find(' ')};
-    const std::string_view key{statement.substr(0, result)};
+    const auto key{statement.substr(0, result)};
     statement.remove_prefix(result + 1);
 
     result = statement.find(' ');
@@ -326,7 +277,7 @@ auto Database::getRange(std::string_view statement) -> std::vector<std::byte> {
             ++end;
 
             if (start < end) {
-                const std::string value{entry->getString().substr(start, end - start)};
+                const auto value{entry->getString().substr(start, end - start)};
                 const auto spanValue{std::as_bytes(std::span{value})};
                 response.insert(response.cend(), spanValue.cbegin(), spanValue.cend());
             }
@@ -367,7 +318,7 @@ auto Database::mget(const std::string_view keys) -> std::vector<std::byte> {
 
 auto Database::setnx(const std::string_view statement) -> std::vector<std::byte> {
     const unsigned long result{statement.find(' ')};
-    std::string_view value{statement.substr(result + 2)};
+    auto value{statement.substr(result + 2)};
     value.remove_suffix(1);
 
     bool success{};
@@ -390,12 +341,12 @@ auto Database::setnx(const std::string_view statement) -> std::vector<std::byte>
 
 auto Database::setRange(std::string_view statement) -> std::vector<std::byte> {
     unsigned long result{statement.find(' ')};
-    const std::string_view key{statement.substr(0, result)};
+    const auto key{statement.substr(0, result)};
     statement.remove_prefix(result + 1);
 
     result = statement.find(' ');
     const auto offset{std::stoul(std::string{statement.substr(0, result)})};
-    std::string_view value{statement.substr(result + 2)};
+    auto value{statement.substr(result + 2)};
     value.remove_suffix(1);
 
     std::vector<std::byte> response;
@@ -463,7 +414,7 @@ auto Database::strlen(const std::string_view key) -> std::vector<std::byte> {
 auto Database::mset(std::string_view statement) -> std::vector<std::byte> {
     while (!statement.empty()) {
         unsigned long result{statement.find(' ')};
-        const std::string_view key{statement.substr(0, result)};
+        const auto key{statement.substr(0, result)};
         statement.remove_prefix(result + 2);
 
         result = statement.find(' ');
@@ -486,40 +437,3 @@ auto Database::mset(std::string_view statement) -> std::vector<std::byte> {
 
     return {ok.cbegin(), ok.cend()};
 }
-
-auto Database::initialize() -> std::unordered_map<unsigned long, Database> {
-    std::filesystem::create_directories(filepathPrefix);
-
-    std::unordered_map<unsigned long, Database> databases;
-    for (const auto &entry : std::filesystem::directory_iterator{filepathPrefix}) {
-        const auto filename{entry.path().filename().string()};
-        const auto id{std::stoul(filename.substr(0, filename.size() - 3))};
-        databases.emplace(id, Database{id});
-    }
-
-    for (unsigned char i{}; i < 16; ++i)
-        if (!databases.contains(i)) databases.emplace(i, Database{i});
-
-    return databases;
-}
-
-Database::Database(const unsigned long id, std::source_location sourceLocation) :
-    id{id}, skiplist{[id, sourceLocation] {
-        const auto filepath{filepathPrefix + std::to_string(id) + ".db"};
-
-        if (!std::filesystem::exists(filepath)) return Skiplist{};
-
-        std::ifstream file{filepath, std::ios::binary};
-        if (!file) {
-            throw Exception{
-                Log{Log::Level::fatal, "failed to open database file", sourceLocation}
-            };
-        }
-
-        std::vector<std::byte> buffer{std::filesystem::file_size(filepath)};
-        file.read(reinterpret_cast<char *>(buffer.data()), static_cast<long>(buffer.size()));
-
-        return Skiplist{buffer};
-    }()} {}
-
-std::unordered_map<unsigned long, Database> Database::databases{initialize()};

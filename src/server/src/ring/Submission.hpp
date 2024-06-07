@@ -5,6 +5,8 @@
 #include <variant>
 
 struct Submission {
+    enum class Type : unsigned char { write, accept, read, receive, send, truncate, close };
+
     struct Write {
         std::span<const std::byte> buffer;
         unsigned long offset;
@@ -33,10 +35,15 @@ struct Submission {
         unsigned int zeroCopyFlags;
     };
 
+    struct Truncate {
+        long length;
+    };
+
     struct Close {};
 
     int fileDescriptor;
     unsigned int flags;
     unsigned long userData;
-    std::variant<Write, Accept, Read, Receive, Send, Close> parameter;
+    std::variant<Write, Accept, Read, Receive, Send, Truncate, Close> parameter;
+    Type type{static_cast<Type>(parameter.index())};
 };

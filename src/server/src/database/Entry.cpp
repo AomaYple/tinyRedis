@@ -120,9 +120,9 @@ auto Entry::serialize() const -> std::vector<std::byte> {
     }
 
     const std::vector serializedKey{this->serializeKey()};
-    unsigned long size{sizeof(this->type) + serializedKey.size() + serializedValue.size()};
+    const unsigned long size{sizeof(this->type) + serializedKey.size() + serializedValue.size()};
     std::vector<std::byte> serialization{sizeof(size)};
-    *reinterpret_cast<decltype(size) *>(serialization.data()) = size;
+    *reinterpret_cast<std::remove_reference_t<std::remove_const_t<decltype(size)>> *>(serialization.data()) = size;
 
     serialization.emplace_back(std::byte{std::to_underlying(this->type)});
     serialization.insert(serialization.cend(), serializedKey.cbegin(), serializedKey.cend());
@@ -132,9 +132,9 @@ auto Entry::serialize() const -> std::vector<std::byte> {
 }
 
 auto Entry::serializeKey() const -> std::vector<std::byte> {
-    unsigned long size{this->key.size()};
+    const unsigned long size{this->key.size()};
     std::vector<std::byte> serialization{sizeof(size)};
-    *reinterpret_cast<decltype(size) *>(serialization.data()) = size;
+    *reinterpret_cast<std::remove_const_t<decltype(size)> *>(serialization.data()) = size;
 
     const auto spanKey{std::as_bytes(std::span{this->key})};
     serialization.insert(serialization.cend(), spanKey.cbegin(), spanKey.cend());
@@ -152,17 +152,17 @@ auto Entry::serializeHash() const -> std::vector<std::byte> {
     std::vector<std::byte> serialization;
 
     for (const auto &[elementKey, elementValue] : std::get<std::unordered_map<std::string, std::string>>(this->value)) {
-        unsigned long keySize{elementKey.size()};
+        const unsigned long keySize{elementKey.size()};
         std::vector<std::byte> serializedElement{sizeof(keySize)};
-        *reinterpret_cast<decltype(keySize) *>(serializedElement.data()) = keySize;
+        *reinterpret_cast<std::remove_const_t<decltype(keySize)> *>(serializedElement.data()) = keySize;
 
         const auto spanKey{std::as_bytes(std::span{elementKey})};
         serializedElement.insert(serializedElement.cend(), spanKey.cbegin(), spanKey.cend());
 
-        unsigned long valueSize{elementValue.size()};
+        const unsigned long valueSize{elementValue.size()};
         serializedElement.resize(serializedElement.size() + sizeof(valueSize));
-        *reinterpret_cast<decltype(valueSize) *>(serializedElement.data() + serializedElement.size() -
-                                                 sizeof(valueSize)) = valueSize;
+        *reinterpret_cast<std::remove_const_t<decltype(valueSize)> *>(
+            serializedElement.data() + serializedElement.size() - sizeof(valueSize)) = valueSize;
 
         const auto spanValue{std::as_bytes(std::span{elementValue})};
         serializedElement.insert(serializedElement.cend(), spanValue.cbegin(), spanValue.cend());
@@ -177,9 +177,9 @@ auto Entry::serializeList() const -> std::vector<std::byte> {
     std::vector<std::byte> serialization;
 
     for (const std::string_view element : std::get<std::deque<std::string>>(this->value)) {
-        unsigned long size{element.size()};
+        const unsigned long size{element.size()};
         std::vector<std::byte> serializedElement{sizeof(size)};
-        *reinterpret_cast<decltype(size) *>(serializedElement.data()) = size;
+        *reinterpret_cast<std::remove_const_t<decltype(size)> *>(serializedElement.data()) = size;
 
         const auto spanElement{std::as_bytes(std::span{element})};
         serializedElement.insert(serializedElement.cend(), spanElement.cbegin(), spanElement.cend());
@@ -194,9 +194,9 @@ auto Entry::serializeSet() const -> std::vector<std::byte> {
     std::vector<std::byte> serialization;
 
     for (const std::string_view element : std::get<std::unordered_set<std::string>>(this->value)) {
-        unsigned long size{element.size()};
+        const unsigned long size{element.size()};
         std::vector<std::byte> serializedElement{sizeof(size)};
-        *reinterpret_cast<decltype(size) *>(serializedElement.data()) = size;
+        *reinterpret_cast<std::remove_const_t<decltype(size)> *>(serializedElement.data()) = size;
 
         const auto spanElement{std::as_bytes(std::span{element})};
         serializedElement.insert(serializedElement.cend(), spanElement.cbegin(), spanElement.cend());
@@ -211,15 +211,16 @@ auto Entry::serializeSortedSet() const -> std::vector<std::byte> {
     std::vector<std::byte> serialization;
 
     for (const auto &[key, score] : std::get<std::set<SortedSetElement>>(this->value)) {
-        unsigned long size{key.size() + sizeof(score)};
+        const unsigned long size{key.size() + sizeof(score)};
         std::vector<std::byte> serializedElement{sizeof(size)};
-        *reinterpret_cast<decltype(size) *>(serializedElement.data()) = size;
+        *reinterpret_cast<std::remove_const_t<decltype(size)> *>(serializedElement.data()) = size;
 
         const auto spanKey{std::as_bytes(std::span{key})};
         serializedElement.insert(serializedElement.cend(), spanKey.cbegin(), spanKey.cend());
 
         serializedElement.resize(serializedElement.size() + sizeof(score));
-        *reinterpret_cast<double *>(serializedElement.data() + serializedElement.size() - sizeof(score)) = score;
+        *reinterpret_cast<std::remove_const_t<decltype(score)> *>(serializedElement.data() + serializedElement.size() -
+                                                                  sizeof(score)) = score;
 
         serialization.insert(serialization.cend(), serializedElement.cbegin(), serializedElement.cend());
     }

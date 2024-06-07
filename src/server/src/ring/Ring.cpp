@@ -55,7 +55,7 @@ auto Ring::registerSelfFileDescriptor(const std::source_location sourceLocation)
     }
 }
 
-auto Ring::registerCpu(const unsigned short cpuCode, const std::source_location sourceLocation) -> void {
+auto Ring::registerCpu(const unsigned int cpuCode, const std::source_location sourceLocation) -> void {
     constexpr cpu_set_t cpuSet{};
     CPU_SET(cpuCode, &cpuSet);
 
@@ -119,45 +119,50 @@ auto Ring::freeRingBuffer(io_uring_buf_ring *const ringBufferHandle, const unsig
 auto Ring::submit(const Submission &submission) -> void {
     io_uring_sqe *const sqe{this->getSqe()};
 
-    switch (submission.parameter.index()) {
-        case 0:
+    switch (submission.type) {
+        case Submission::Type::write:
             {
-                const auto &[buffer, offset]{std::get<Submission::Write>(submission.parameter)};
+                const auto [buffer, offset]{std::get<Submission::Write>(submission.parameter)};
                 io_uring_prep_write(sqe, submission.fileDescriptor, buffer.data(), buffer.size(), offset);
 
                 break;
             }
-        case 1:
+        case Submission::Type::accept:
             {
-                const auto &[address, addressLength, flags]{std::get<Submission::Accept>(submission.parameter)};
+                const auto [address, addressLength, flags]{std::get<Submission::Accept>(submission.parameter)};
                 io_uring_prep_multishot_accept_direct(sqe, submission.fileDescriptor, address, addressLength, flags);
 
                 break;
             }
-        case 2:
+        case Submission::Type::read:
             {
-                const auto &[buffer, offset]{std::get<Submission::Read>(submission.parameter)};
+                const auto [buffer, offset]{std::get<Submission::Read>(submission.parameter)};
                 io_uring_prep_read(sqe, submission.fileDescriptor, buffer.data(), buffer.size(), offset);
 
                 break;
             }
-        case 3:
+        case Submission::Type::receive:
             {
-                const auto &[buffer, flags, ringBufferId]{std::get<Submission::Receive>(submission.parameter)};
+                const auto [buffer, flags, ringBufferId]{std::get<Submission::Receive>(submission.parameter)};
                 io_uring_prep_recv_multishot(sqe, submission.fileDescriptor, buffer.data(), buffer.size(), flags);
                 sqe->buf_group = ringBufferId;
 
                 break;
             }
-        [[likely]] case 4:
+        [[likely]] case Submission::Type::send:
             {
-                const auto &[buffer, flags, zeroCopyFlags]{std::get<Submission::Send>(submission.parameter)};
+                const auto [buffer, flags, zeroCopyFlags]{std::get<Submission::Send>(submission.parameter)};
                 io_uring_prep_send_zc(sqe, submission.fileDescriptor, buffer.data(), buffer.size(), flags,
                                       zeroCopyFlags);
 
                 break;
             }
-        case 5:
+        case Submission::Type::truncate:
+            io_uring_prep_ftruncate(sqe, submission.fileDescriptor,
+                                    std::get<Submission::Truncate>(submission.parameter).length);
+
+            break;
+        case Submission::Type::close:
             io_uring_prep_close_direct(sqe, submission.fileDescriptor);
 
             break;

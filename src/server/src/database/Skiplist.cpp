@@ -100,13 +100,14 @@ auto Skiplist::serialize() const -> std::vector<std::byte> {
     const Node *node{this->start};
     while (node != nullptr && node->down != nullptr) node = node->down;
 
-    std::vector<std::byte> serialization;
+    std::vector<std::byte> serialization{sizeof(unsigned long)};
     while (node != nullptr) {
         const std::vector serializedEntry{node->entry->serialize()};
         serialization.insert(serialization.cend(), serializedEntry.cbegin(), serializedEntry.cend());
 
         node = node->next;
     }
+    *reinterpret_cast<unsigned long *>(serialization.data()) = serialization.size() - sizeof(unsigned long);
 
     return serialization;
 }

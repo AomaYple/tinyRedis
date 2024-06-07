@@ -119,8 +119,8 @@ auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std:
 
     std::vector buffer{std::byte{std::to_underlying(commandType)}};
 
-    buffer.resize(buffer.size() + sizeof(unsigned long));
-    *reinterpret_cast<unsigned long *>(buffer.data() + buffer.size() - sizeof(unsigned long)) = id;
+    buffer.resize(buffer.size() + sizeof(id));
+    *reinterpret_cast<std::remove_reference_t<decltype(id)> *>(buffer.data() + buffer.size() - sizeof(id)) = id;
 
     const auto spanStatement{std::as_bytes(std::span{statement})};
     buffer.insert(buffer.cend(), spanStatement.cbegin(), spanStatement.cend());

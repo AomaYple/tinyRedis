@@ -7,14 +7,14 @@
 #include <linux/io_uring.h>
 
 auto Logger::create(const std::source_location sourceLocation) -> int {
-    const int result{openat(AT_FDCWD, "log.log", O_CREAT | O_TRUNC | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR)};
-    if (result == -1) {
+    const int fileDescriptor{open("log.log", O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR)};
+    if (fileDescriptor == -1) {
         throw Exception{
             Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
         };
     }
 
-    return result;
+    return fileDescriptor;
 }
 
 Logger::Logger(const int fileDescriptor) : FileDescriptor{fileDescriptor} {}

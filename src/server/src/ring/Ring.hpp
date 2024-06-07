@@ -29,7 +29,7 @@ public:
 
     auto registerSelfFileDescriptor(std::source_location sourceLocation = std::source_location::current()) -> void;
 
-    auto registerCpu(unsigned short cpuCode, std::source_location sourceLocation = std::source_location::current())
+    auto registerCpu(unsigned int cpuCode, std::source_location sourceLocation = std::source_location::current())
         -> void;
 
     auto registerSparseFileDescriptor(unsigned int count,

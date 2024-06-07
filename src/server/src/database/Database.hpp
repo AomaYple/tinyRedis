@@ -7,9 +7,7 @@
 
 class Database {
 public:
-    [[nodiscard]] static auto query(std::span<const std::byte> data) -> std::vector<std::byte>;
-
-    [[nodiscard]] static auto select(unsigned long id) -> std::vector<std::byte>;
+    Database(unsigned long id, std::span<const std::byte> data);
 
     Database(const Database &) = delete;
 
@@ -19,7 +17,9 @@ public:
 
     auto operator=(Database &&) noexcept -> Database &;
 
-    ~Database();
+    ~Database() = default;
+
+    [[nodiscard]] auto serialize() -> std::vector<std::byte>;
 
     [[nodiscard]] auto del(std::string_view keys) -> std::vector<std::byte>;
 
@@ -27,7 +27,8 @@ public:
 
     [[nodiscard]] auto exists(std::string_view keys) -> std::vector<std::byte>;
 
-    [[nodiscard]] auto move(std::string_view statment) -> std::vector<std::byte>;
+    [[nodiscard]] auto move(std::unordered_map<unsigned long, Database> &databases, std::string_view statement)
+        -> std::vector<std::byte>;
 
     [[nodiscard]] auto rename(std::string_view statement) -> std::vector<std::byte>;
 
@@ -52,13 +53,6 @@ public:
     [[nodiscard]] auto mset(std::string_view statement) -> std::vector<std::byte>;
 
 private:
-    static auto initialize() -> std::unordered_map<unsigned long, Database>;
-
-    explicit Database(unsigned long id, std::source_location sourceLocation = std::source_location::current());
-
-    static constexpr std::string filepathPrefix{"data/"};
-    static std::unordered_map<unsigned long, Database> databases;
-
     unsigned long id;
     Skiplist skiplist;
     std::shared_mutex lock;

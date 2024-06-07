@@ -27,87 +27,58 @@ auto Scheduler::registerSignal(const std::source_location sourceLocation) -> voi
     }
 }
 
-Scheduler::Scheduler() {
+Scheduler::Scheduler(const int sharedFileDescriptor, const unsigned int cpuCode, const bool main) :
+    ring{[sharedFileDescriptor] {
+        io_uring_params params{};
+        params.flags = IORING_SETUP_CLAMP | IORING_SETUP_SUBMIT_ALL | IORING_SETUP_COOP_TASKRUN |
+                       IORING_SETUP_TASKRUN_FLAG | IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_DEFER_TASKRUN;
+
+        if (sharedFileDescriptor != -1) {
+            params.wq_fd = sharedFileDescriptor;
+            params.flags |= IORING_SETUP_ATTACH_WQ;
+        }
+
+        auto ring{std::make_shared<Ring>(2048 / std::thread::hardware_concurrency(), params)};
+
+        return ring;
+    }()},
+    main{main} {
     this->ring->registerSelfFileDescriptor();
-
-    {
-        const std::lock_guard lockGuard{lock};
-
-        this->ring->registerCpu(std::distance(ringFileDescriptors.begin(),
-                                              std::ranges::find(ringFileDescriptors, this->ring->getFileDescriptor())));
-    }
-
+    this->ring->registerCpu(cpuCode);
     this->ring->registerSparseFileDescriptor(Ring::getFileDescriptorLimit());
 
-    const std::array fileDescriptors{Logger::create(), Server::create(), Timer::create()};
+    std::vector fileDescriptors{Logger::create(), Server::create(), Timer::create()};
+    if (this->main) fileDescriptors.emplace_back(DatabaseManager::create());
+
     this->ring->allocateFileDescriptorRange(fileDescriptors.size(),
                                             Ring::getFileDescriptorLimit() - fileDescriptors.size());
     this->ring->updateFileDescriptors(0, fileDescriptors);
 }
 
 Scheduler::~Scheduler() {
-    this->closeAll();
+    for (const auto &client : this->clients | std::views::values)
+        this->submit(std::make_shared<Task>(this->close(client.getFileDescriptor())));
+    this->submit(std::make_shared<Task>(this->close(this->timer.getFileDescriptor())));
+    this->submit(std::make_shared<Task>(this->close(this->server.getFileDescriptor())));
+    this->submit(std::make_shared<Task>(this->close(this->logger->getFileDescriptor())));
+    if (this->main) this->submit(std::make_shared<Task>(this->close(databaseManager.getFileDescriptor())));
 
-    const std::lock_guard lockGuard{lock};
-
-    auto result{std::ranges::find(ringFileDescriptors, this->ring->getFileDescriptor())};
-    *result = -1;
-
-    if (sharedRingFileDescriptor == this->ring->getFileDescriptor()) {
-        sharedRingFileDescriptor = -1;
-
-        result = std::ranges::find_if(ringFileDescriptors,
-                                      [](const int fileDescriptor) noexcept { return fileDescriptor != -1; });
-        if (result != ringFileDescriptors.cend()) sharedRingFileDescriptor = *result;
-    }
-
-    instance = false;
+    this->ring->wait(this->main ? 4 : 3 + this->clients.size());
+    this->frame();
 }
+
+auto Scheduler::getRingFileDescriptor() const noexcept -> int { return this->ring->getFileDescriptor(); }
 
 auto Scheduler::run() -> void {
     this->submit(std::make_shared<Task>(this->accept()));
     this->submit(std::make_shared<Task>(this->timing()));
 
     while (switcher.test(std::memory_order::relaxed)) {
-        if (this->logger->writable()) this->submit(std::make_shared<Task>(this->write()));
+        if (this->logger->writable()) this->submit(std::make_shared<Task>(this->writeLog()));
 
         this->ring->wait(1);
         this->frame();
     }
-}
-
-auto Scheduler::initializeRing(const std::source_location sourceLocation) -> std::shared_ptr<Ring> {
-    if (instance) {
-        throw Exception{
-            Log{Log::Level::fatal, "one thread can only have one Scheduler", sourceLocation}
-        };
-    }
-    instance = true;
-
-    io_uring_params params{};
-    params.flags = IORING_SETUP_CLAMP | IORING_SETUP_SUBMIT_ALL | IORING_SETUP_COOP_TASKRUN |
-                   IORING_SETUP_TASKRUN_FLAG | IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_DEFER_TASKRUN;
-
-    const std::lock_guard lockGuard{lock};
-
-    if (sharedRingFileDescriptor != -1) {
-        params.wq_fd = sharedRingFileDescriptor;
-        params.flags |= IORING_SETUP_ATTACH_WQ;
-    }
-
-    auto ring{std::make_shared<Ring>(2048 / ringFileDescriptors.size(), params)};
-
-    if (sharedRingFileDescriptor == -1) sharedRingFileDescriptor = ring->getFileDescriptor();
-
-    if (const auto result{std::ranges::find(ringFileDescriptors, -1)}; result != ringFileDescriptors.cend())
-        *result = ring->getFileDescriptor();
-    else {
-        throw Exception{
-            Log{Log::Level::fatal, "too many Scheduler", sourceLocation}
-        };
-    }
-
-    return ring;
 }
 
 auto Scheduler::frame() -> void {
@@ -129,7 +100,7 @@ auto Scheduler::submit(std::shared_ptr<Task> &&task) -> void {
 
 auto Scheduler::eraseCurrentTask() -> void { this->tasks.erase(this->currentUserData); }
 
-auto Scheduler::write(const std::source_location sourceLocation) -> Task {
+auto Scheduler::writeLog(const std::source_location sourceLocation) -> Task {
     if (const auto [result, flags]{co_await this->logger->write()}; result < 0) {
         throw Exception{
             Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
@@ -167,6 +138,9 @@ auto Scheduler::timing(const std::source_location sourceLocation) -> Task {
         };
     }
 
+    if (this->main && databaseManager.writable())
+        this->submit(std::make_shared<Task>(databaseManager.truncatable() ? this->truncate() : this->writeData()));
+
     this->eraseCurrentTask();
 }
 
@@ -180,7 +154,7 @@ auto Scheduler::receive(const Client &client, const std::source_location sourceL
             buffer.insert(buffer.cend(), receivedData.cbegin(), receivedData.cend());
 
             if (!(flags & IORING_CQE_F_SOCK_NONEMPTY)) {
-                std::vector response{Database::query(buffer)};
+                std::vector response{databaseManager.query(buffer)};
                 buffer.clear();
 
                 this->submit(std::make_shared<Task>(this->send(client, std::move(response))));
@@ -211,11 +185,35 @@ auto Scheduler::send(const Client &client, std::vector<std::byte> &&data, const 
     this->eraseCurrentTask();
 }
 
+auto Scheduler::truncate(std::source_location sourceLocation) -> Task {
+    if (const auto [result, flags]{co_await databaseManager.truncate()}; result != 0) {
+        throw Exception{
+            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+        };
+    }
+    this->submit(std::make_shared<Task>(this->writeData()));
+
+    this->eraseCurrentTask();
+}
+
+auto Scheduler::writeData(std::source_location sourceLocation) -> Task {
+    if (const auto [result, flags]{co_await databaseManager.write()}; result < 0) {
+        throw Exception{
+            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+        };
+    }
+    databaseManager.wrote();
+
+    this->eraseCurrentTask();
+}
+
 auto Scheduler::close(const int fileDescriptor, const std::source_location sourceLocation) -> Task {
     Outcome outcome;
     if (fileDescriptor == this->logger->getFileDescriptor()) outcome = co_await this->logger->close();
     else if (fileDescriptor == this->server.getFileDescriptor()) outcome = co_await this->server.close();
     else if (fileDescriptor == this->timer.getFileDescriptor()) outcome = co_await this->timer.close();
+    else if (this->main && fileDescriptor == databaseManager.getFileDescriptor())
+        outcome = co_await databaseManager.close();
     else [[likely]] {
         outcome = co_await this->clients.at(fileDescriptor).close();
         this->clients.erase(fileDescriptor);
@@ -227,19 +225,5 @@ auto Scheduler::close(const int fileDescriptor, const std::source_location sourc
     this->eraseCurrentTask();
 }
 
-auto Scheduler::closeAll() -> void {
-    for (const auto &client : this->clients | std::views::values)
-        this->submit(std::make_shared<Task>(this->close(client.getFileDescriptor())));
-    this->submit(std::make_shared<Task>(this->close(this->timer.getFileDescriptor())));
-    this->submit(std::make_shared<Task>(this->close(this->server.getFileDescriptor())));
-    this->submit(std::make_shared<Task>(this->close(this->logger->getFileDescriptor())));
-
-    this->ring->wait(3 + this->clients.size());
-    this->frame();
-}
-
-constinit thread_local bool Scheduler::instance{};
-constinit std::mutex Scheduler::lock;
-constinit int Scheduler::sharedRingFileDescriptor{-1};
-std::vector<int> Scheduler::ringFileDescriptors{std::vector(std::thread::hardware_concurrency(), -1)};
 constinit std::atomic_flag Scheduler::switcher{true};
+DatabaseManager Scheduler::databaseManager{3};
