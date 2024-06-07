@@ -503,8 +503,8 @@ auto Database::crement(const std::string_view key, const long digital) -> std::v
                 entry->getString() = std::to_string(std::stol(entry->getString()) + digital);
 
                 response.insert(response.cend(), integer.cbegin(), integer.cend());
-                const auto spanNumber{std::as_bytes(std::span{entry->getString()})};
-                response.insert(response.cend(), spanNumber.cbegin(), spanNumber.cend());
+                const auto spanDigital{std::as_bytes(std::span{entry->getString()})};
+                response.insert(response.cend(), spanDigital.cbegin(), spanDigital.cend());
             } else response = wrongType;
         } else {
             const auto stringDigital{std::to_string(digital)};
