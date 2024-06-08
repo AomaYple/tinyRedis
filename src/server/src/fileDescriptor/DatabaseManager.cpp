@@ -29,35 +29,33 @@ DatabaseManager::DatabaseManager(const int fileDescriptor) : FileDescriptor{file
     if (std::ifstream file{filepath}; file.is_open()) {
         std::vector<std::byte> buffer{std::filesystem::file_size(filepath)};
         file.read(reinterpret_cast<char *>(buffer.data()), static_cast<long>(buffer.size()));
+        if (buffer.empty()) return;
 
-        if (!buffer.empty()) {
-            std::span<const std::byte> data{buffer};
+        std::span<const std::byte> data{buffer};
+        auto count{*reinterpret_cast<const unsigned long *>(data.data())};
+        data = data.subspan(sizeof(decltype(count)));
 
-            auto count{*reinterpret_cast<const unsigned long *>(data.data())};
-            data = data.subspan(sizeof(decltype(count)));
+        while (count > 0) {
+            const auto id{*reinterpret_cast<const unsigned long *>(data.data())};
+            data = data.subspan(sizeof(decltype(id)));
 
-            while (count > 0) {
-                const auto id{*reinterpret_cast<const unsigned long *>(data.data())};
-                data = data.subspan(sizeof(decltype(id)));
+            const auto size{*reinterpret_cast<const unsigned long *>(data.data())};
+            data = data.subspan(sizeof(decltype(size)));
 
-                const auto size{*reinterpret_cast<const unsigned long *>(data.data())};
-                data = data.subspan(sizeof(decltype(size)));
+            if (const auto result{this->databases.find(id)}; result != this->databases.cend())
+                result->second = Database{id, data.subspan(0, size)};
+            else this->databases.emplace(id, Database{id, data.subspan(0, size)});
+            data = data.subspan(size);
 
-                if (const auto result{this->databases.find(id)}; result != this->databases.cend())
-                    result->second = Database{id, data.subspan(0, size)};
-                else this->databases.emplace(id, Database{id, data.subspan(0, size)});
-                data = data.subspan(size);
+            --count;
+        }
 
-                --count;
-            }
+        while (!data.empty()) {
+            const auto size{*reinterpret_cast<const unsigned long *>(data.data())};
+            data = data.subspan(sizeof(decltype(size)));
 
-            while (!data.empty()) {
-                const auto size{*reinterpret_cast<const unsigned long *>(data.data())};
-                data = data.subspan(sizeof(decltype(size)));
-
-                this->query(data.subspan(0, size));
-                data = data.subspan(size);
-            }
+            this->query(data.subspan(0, size));
+            data = data.subspan(size);
         }
     }
 }
@@ -182,25 +180,19 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
 auto DatabaseManager::writable() -> bool {
     ++this->seconds;
 
-    if (this->writeBuffer.empty()) {
+    if (const std::lock_guard lockGuard{this->lock}; this->writeBuffer.empty()) {
         if ((this->seconds >= std::chrono::seconds{900} && this->writeCount > 1) ||
             (this->seconds >= std::chrono::seconds{300} && this->writeCount > 10) ||
             (this->seconds >= std::chrono::seconds{60} && this->writeCount > 10000)) {
             this->seconds = std::chrono::seconds::zero();
-
-            {
-                const std::lock_guard lockGuard{this->lock};
-
-                this->aofBuffer.clear();
-                this->writeCount = 0;
-            }
-
+            this->aofBuffer.clear();
+            this->writeCount = 0;
             this->writeBuffer = this->serialize();
 
             return true;
         }
 
-        if (const std::lock_guard lockGuard{this->lock}; !this->aofBuffer.empty()) {
+        if (!this->aofBuffer.empty()) {
             if (std::filesystem::file_size(filepath) == 0) {
                 this->aofBuffer.insert(this->aofBuffer.cbegin(), sizeof(unsigned long), std::byte{});
                 *reinterpret_cast<unsigned long *>(this->aofBuffer.data()) = 0;
@@ -259,8 +251,6 @@ auto DatabaseManager::select(const unsigned long id) -> std::vector<std::byte> {
 }
 
 auto DatabaseManager::serialize() -> std::vector<std::byte> {
-    const std::shared_lock sharedLock{this->lock};
-
     const unsigned long size{this->databases.size()};
     std::vector<std::byte> serialization{sizeof(size)};
     *reinterpret_cast<std::remove_const_t<decltype(size)> *>(serialization.data()) = size;

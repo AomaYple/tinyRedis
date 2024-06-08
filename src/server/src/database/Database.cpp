@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <mutex>
-#include <print>
 #include <ranges>
 
 static constexpr std::array ok{std::byte{'"'}, std::byte{'O'}, std::byte{'K'}, std::byte{'"'}};
@@ -142,27 +141,21 @@ auto Database::rename(const std::string_view statement) -> std::vector<std::byte
     const unsigned long result{statement.find(' ')};
     const auto key{statement.substr(0, result)}, newKey{statement.substr(result + 1)};
 
-    std::vector<std::byte> response;
+    const std::lock_guard lockGuard{this->lock};
 
-    {
-        const std::lock_guard lockGuard{this->lock};
+    if (std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        this->skiplist.erase(key);
 
-        if (std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            this->skiplist.erase(key);
+        entry->getKey() = newKey;
+        this->skiplist.insert(std::move(entry));
 
-            entry->getKey() = newKey;
-            this->skiplist.insert(std::move(entry));
-
-            response.insert(response.cend(), ok.cbegin(), ok.cend());
-        } else {
-            static constexpr std::string_view noSuchKey{"(error) no such key"};
-            const auto spanNoSuchKey{std::as_bytes(std::span{noSuchKey})};
-
-            response.insert(response.cend(), spanNoSuchKey.cbegin(), spanNoSuchKey.cend());
-        }
+        return {ok.cbegin(), ok.cend()};
     }
 
-    return response;
+    static constexpr std::string_view noSuchKey{"(error) no such key"};
+    const auto spanNoSuchKey{std::as_bytes(std::span{noSuchKey})};
+
+    return {spanNoSuchKey.cbegin(), spanNoSuchKey.cend()};
 }
 
 auto Database::renamenx(const std::string_view statement) -> std::vector<std::byte> {
@@ -241,24 +234,24 @@ auto Database::set(const std::string_view statement) -> std::vector<std::byte> {
 }
 
 auto Database::get(const std::string_view key) -> std::vector<std::byte> {
-    std::vector<std::byte> response;
+    const std::shared_lock sharedLock{this->lock};
 
-    {
-        const std::shared_lock sharedLock{this->lock};
+    if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (entry->getType() == Entry::Type::string) {
+            std::vector response{std::byte{'"'}};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            if (entry->getType() == Entry::Type::string) {
-                response.emplace_back(std::byte{'"'});
+            const auto spanValue{std::as_bytes(std::span{entry->getString()})};
+            response.insert(response.cend(), spanValue.cbegin(), spanValue.cend());
 
-                const auto spanValue{std::as_bytes(std::span{entry->getString()})};
-                response.insert(response.cend(), spanValue.cbegin(), spanValue.cend());
+            response.emplace_back(std::byte{'"'});
 
-                response.emplace_back(std::byte{'"'});
-            } else response.insert(response.cend(), wrongType.cbegin(), wrongType.cend());
-        } else response.insert(response.cend(), nil.cbegin(), nil.cend());
+            return response;
+        }
+
+        return wrongType;
     }
 
-    return response;
+    return {nil.cbegin(), nil.cend()};
 }
 
 auto Database::getRange(std::string_view statement) -> std::vector<std::byte> {
@@ -351,8 +344,7 @@ auto Database::setRange(std::string_view statement) -> std::vector<std::byte> {
     auto value{statement.substr(result + 2)};
     value.remove_suffix(1);
 
-    std::vector<std::byte> response;
-
+    std::string size;
     {
         const std::lock_guard lockGuard{this->lock};
 
@@ -367,32 +359,28 @@ auto Database::setRange(std::string_view statement) -> std::vector<std::byte> {
 
                 entryValue.replace(offset, value.size(), value);
 
-                response.insert(response.cend(), integer.cbegin(), integer.cend());
-
-                const auto size{std::to_string(entryValue.size())};
-                const auto spanSize{std::as_bytes(std::span{size})};
-                response.insert(response.cend(), spanSize.cbegin(), spanSize.cend());
-            } else response.insert(response.cend(), wrongType.cbegin(), wrongType.cend());
+                size = std::to_string(entryValue.size());
+            } else return wrongType;
         } else {
             entry = std::make_shared<Entry>(std::string{key}, std::string(offset, ' '));
             entry->getString() += value;
 
-            response.insert(response.cend(), integer.cbegin(), integer.cend());
-
-            const auto size{std::to_string(entry->getString().size())};
-            const auto spanSize{std::as_bytes(std::span{size})};
-            response.insert(response.cend(), spanSize.cbegin(), spanSize.cend());
+            size = std::to_string(entry->getString().size());
 
             this->skiplist.insert(std::move(entry));
         }
     }
+    std::vector response{integer};
+    const auto spanSize{std::as_bytes(std::span{size})};
+    response.insert(response.cend(), spanSize.cbegin(), spanSize.cend());
 
     return response;
 }
 
 auto Database::strlen(const std::string_view key) -> std::vector<std::byte> {
-    std::vector<std::byte> response;
+    std::vector response{integer};
 
+    std::string size;
     {
         const std::shared_lock sharedLock{this->lock};
 
@@ -400,15 +388,12 @@ auto Database::strlen(const std::string_view key) -> std::vector<std::byte> {
             if (entry->getType() == Entry::Type::string) {
                 response.insert(response.cend(), integer.cbegin(), integer.cend());
 
-                const auto size{std::to_string(entry->getString().size())};
-                const auto spanSize{std::as_bytes(std::span{size})};
-                response.insert(response.cend(), spanSize.cbegin(), spanSize.cend());
-            } else response.insert(response.cend(), wrongType.cbegin(), wrongType.cend());
-        } else {
-            response.insert(response.cend(), integer.cbegin(), integer.cend());
-            response.emplace_back(std::byte{'0'});
-        }
+                size = std::to_string(entry->getString().size());
+            } else return wrongType;
+        } else size = '0';
     }
+    const auto spanSize{std::as_bytes(std::span{size})};
+    response.insert(response.cend(), spanSize.cbegin(), spanSize.cend());
 
     return response;
 }
@@ -493,8 +478,7 @@ auto isInteger(const std::string &integer) {
 }
 
 auto Database::crement(const std::string_view key, const long digital) -> std::vector<std::byte> {
-    std::vector<std::byte> response;
-
+    std::string stringDigital;
     {
         const std::lock_guard lockGuard{this->lock};
 
@@ -502,19 +486,17 @@ auto Database::crement(const std::string_view key, const long digital) -> std::v
             if (entry->getType() == Entry::Type::string && isInteger(entry->getString())) {
                 entry->getString() = std::to_string(std::stol(entry->getString()) + digital);
 
-                response.insert(response.cend(), integer.cbegin(), integer.cend());
-                const auto spanDigital{std::as_bytes(std::span{entry->getString()})};
-                response.insert(response.cend(), spanDigital.cbegin(), spanDigital.cend());
-            } else response = wrongType;
+                stringDigital = entry->getString();
+            } else return wrongType;
         } else {
-            const auto stringDigital{std::to_string(digital)};
-            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{stringDigital}));
+            stringDigital = std::to_string(digital);
 
-            response.insert(response.cend(), integer.cbegin(), integer.cend());
-            const auto spanDigital{std::as_bytes(std::span{stringDigital})};
-            response.insert(response.cend(), spanDigital.cbegin(), spanDigital.cend());
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{stringDigital}));
         }
     }
+    std::vector response{integer};
+    const auto spanDigital{std::as_bytes(std::span{stringDigital})};
+    response.insert(response.cend(), spanDigital.cbegin(), spanDigital.cend());
 
     return response;
 }
@@ -545,8 +527,7 @@ auto Database::append(const std::string_view statement) -> std::vector<std::byte
     auto value{statement.substr(result + 2)};
     value.remove_suffix(1);
 
-    std::vector<std::byte> response;
-
+    std::string size;
     {
         const std::lock_guard lockGuard{this->lock};
 
@@ -554,22 +535,17 @@ auto Database::append(const std::string_view statement) -> std::vector<std::byte
             if (entry->getType() == Entry::Type::string) {
                 entry->getString() += value;
 
-                response.insert(response.cend(), integer.cbegin(), integer.cend());
-
-                const auto stringSize{std::to_string(entry->getString().size())};
-                const auto spanSize{std::as_bytes(std::span{stringSize})};
-                response.insert(response.cend(), spanSize.cbegin(), spanSize.cend());
-            } else response = wrongType;
+                size = std::to_string(entry->getString().size());
+            } else return wrongType;
         } else {
             this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
 
-            response.insert(response.cend(), integer.cbegin(), integer.cend());
-
-            const auto stringSize{std::to_string(value.size())};
-            const auto spanSize{std::as_bytes(std::span{stringSize})};
-            response.insert(response.cend(), spanSize.cbegin(), spanSize.cend());
+            size = std::to_string(value.size());
         }
     }
+    std::vector response{integer};
+    const auto spanSize{std::as_bytes(std::span{size})};
+    response.insert(response.cend(), spanSize.cbegin(), spanSize.cend());
 
     return response;
 }
