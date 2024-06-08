@@ -121,6 +121,7 @@ auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std:
     else if (command == "INCRBY") commandType = Command::incrby;
     else if (command == "DECR") commandType = Command::decr;
     else if (command == "DECRBY") commandType = Command::decrBy;
+    else if (command == "APPEND") commandType = Command::append;
 
     std::vector buffer{std::byte{std::to_underlying(commandType)}};
 

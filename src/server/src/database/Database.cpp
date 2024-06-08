@@ -531,10 +531,45 @@ auto Database::incrBy(std::string_view statement) -> std::vector<std::byte> {
 
 auto Database::decr(const std::string_view key) -> std::vector<std::byte> { return this->crement(key, -1); }
 
-auto Database::decrBy(std::string_view statement) -> std::vector<std::byte> {
+auto Database::decrBy(const std::string_view statement) -> std::vector<std::byte> {
     const unsigned long result{statement.find(' ')};
     const auto key{statement.substr(0, result)};
     const auto increment{std::stol(std::string{statement.substr(result + 1)})};
 
     return this->crement(key, -increment);
+}
+
+auto Database::append(const std::string_view statement) -> std::vector<std::byte> {
+    const unsigned long result{statement.find(' ')};
+    const auto key{statement.substr(0, result)};
+    auto value{statement.substr(result + 2)};
+    value.remove_suffix(1);
+
+    std::vector<std::byte> response;
+
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::string) {
+                entry->getString() += value;
+
+                response.insert(response.cend(), integer.cbegin(), integer.cend());
+
+                const auto stringSize{std::to_string(entry->getString().size())};
+                const auto spanSize{std::as_bytes(std::span{stringSize})};
+                response.insert(response.cend(), spanSize.cbegin(), spanSize.cend());
+            } else response = wrongType;
+        } else {
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
+
+            response.insert(response.cend(), integer.cbegin(), integer.cend());
+
+            const auto stringSize{std::to_string(value.size())};
+            const auto spanSize{std::as_bytes(std::span{stringSize})};
+            response.insert(response.cend(), spanSize.cbegin(), spanSize.cend());
+        }
+    }
+
+    return response;
 }

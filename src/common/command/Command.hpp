@@ -21,5 +21,6 @@ enum class Command : unsigned char {
     incr,
     incrby,
     decr,
-    decrBy
+    decrBy,
+    append
 };

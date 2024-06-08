@@ -64,6 +64,8 @@ public:
 
     [[nodiscard]] auto decrBy(std::string_view statement) -> std::vector<std::byte>;
 
+    [[nodiscard]] auto append(std::string_view statement) -> std::vector<std::byte>;
+
 private:
     unsigned long id;
     Skiplist skiplist;
