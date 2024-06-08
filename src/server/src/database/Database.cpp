@@ -530,3 +530,11 @@ auto Database::incrBy(std::string_view statement) -> std::vector<std::byte> {
 }
 
 auto Database::decr(const std::string_view key) -> std::vector<std::byte> { return this->crement(key, -1); }
+
+auto Database::decrBy(std::string_view statement) -> std::vector<std::byte> {
+    const unsigned long result{statement.find(' ')};
+    const auto key{statement.substr(0, result)};
+    const auto increment{std::stol(std::string{statement.substr(result + 1)})};
+
+    return this->crement(key, -increment);
+}

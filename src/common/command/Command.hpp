@@ -20,5 +20,6 @@ enum class Command : unsigned char {
     msetnx,
     incr,
     incrby,
-    decr
+    decr,
+    decrBy
 };
