@@ -19,6 +19,14 @@ auto DatabaseManager::create(const std::source_location sourceLocation) -> int {
             Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
         };
     }
+    if (std::filesystem::file_size(filepath) == 0) {
+        constexpr unsigned long count{};
+        if (::write(fileDescriptor, &count, sizeof(count)) == -1) {
+            throw Exception{
+                Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            };
+        }
+    }
 
     return fileDescriptor;
 }
@@ -193,11 +201,6 @@ auto DatabaseManager::writable() -> bool {
         }
 
         if (!this->aofBuffer.empty()) {
-            if (std::filesystem::file_size(filepath) == 0) {
-                this->aofBuffer.insert(this->aofBuffer.cbegin(), sizeof(unsigned long), std::byte{});
-                *reinterpret_cast<unsigned long *>(this->aofBuffer.data()) = 0;
-            }
-
             this->writeBuffer = std::move(this->aofBuffer);
 
             return true;
