@@ -23,18 +23,15 @@ auto main() -> int {
     std::vector<std::string> transactions;
 
     while (true) {
-        std::print("tinyRedis {}:{}{}{}{}> ", host, port, id == 0 ? "" : "[", id == 0 ? "" : std::to_string(id),
-                   id == 0 ? "" : "]");
+        std::print("{}:{}{}{}{}{}> ", host, port, id == 0 ? "" : "[", id == 0 ? "" : std::to_string(id),
+                   id == 0 ? "" : "]", isTransaction ? "(TX)" : "");
 
         std::string inputBuffer;
         std::getline(std::cin, inputBuffer);
 
         if (inputBuffer.empty()) continue;
-        if (inputBuffer == "QUIT") {
-            std::println("OK");
+        if (inputBuffer == "QUIT") break;
 
-            break;
-        }
         if (inputBuffer == "MULTI") {
             isTransaction = true;
             std::println("OK");
@@ -49,13 +46,15 @@ auto main() -> int {
             continue;
         }
         if (inputBuffer == "EXEC") {
-            for (unsigned long i{}; i < transactions.size(); ++i) {
-                connection.send(formatRequest(transactions[i], id));
-                const std::vector data{connection.receive()};
+            if (!transactions.empty()) {
+                for (unsigned long i{}; i < transactions.size(); ++i) {
+                    connection.send(formatRequest(transactions[i], id));
+                    const std::vector data{connection.receive()};
 
-                std::println("{}{}", std::to_string(i + 1) + ") ",
-                             std::string_view{reinterpret_cast<const char *>(data.data()), data.size()});
-            }
+                    std::println("{}{}", std::to_string(i + 1) + ") ",
+                                 std::string_view{reinterpret_cast<const char *>(data.data()), data.size()});
+                }
+            } else std::println("(empty array)");
 
             transactions.clear();
             isTransaction = false;

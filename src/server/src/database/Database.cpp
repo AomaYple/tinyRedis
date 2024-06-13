@@ -4,7 +4,7 @@
 #include <mutex>
 #include <ranges>
 
-static constexpr std::array ok{std::byte{'"'}, std::byte{'O'}, std::byte{'K'}, std::byte{'"'}};
+static constexpr std::array ok{std::byte{'O'}, std::byte{'K'}};
 static const std::vector integer{[] {
     constexpr std::string_view integer{"(integer) "};
     const auto spanInteger{std::as_bytes(std::span{integer})};
