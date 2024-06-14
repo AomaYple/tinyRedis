@@ -209,25 +209,19 @@ auto Database::type(const std::string_view key) -> std::vector<std::byte> {
         } else type = "none";
     }
 
-    std::vector response{std::byte{'"'}};
-
     const auto spanType{std::as_bytes(std::span{type})};
-    response.insert(response.cend(), spanType.cbegin(), spanType.cend());
 
-    response.emplace_back(std::byte{'"'});
-
-    return response;
+    return {spanType.cbegin(), spanType.cend()};
 }
 
 auto Database::set(const std::string_view statement) -> std::vector<std::byte> {
-    const unsigned long result{statement.find(' ')};
-    auto value{statement.substr(result + 2)};
-    value.remove_suffix(1);
-
     {
+        const unsigned long result{statement.find(' ')};
+
         const std::lock_guard lockGuard{this->lock};
 
-        this->skiplist.insert(std::make_shared<Entry>(std::string{statement.substr(0, result)}, std::string{value}));
+        this->skiplist.insert(std::make_shared<Entry>(std::string{statement.substr(0, result)},
+                                                      std::string{statement.substr(result + 1)}));
     }
 
     return {ok.cbegin(), ok.cend()};
@@ -312,17 +306,15 @@ auto Database::mget(const std::string_view keys) -> std::vector<std::byte> {
 }
 
 auto Database::setnx(const std::string_view statement) -> std::vector<std::byte> {
-    const unsigned long result{statement.find(' ')};
-    auto value{statement.substr(result + 2)};
-    value.remove_suffix(1);
-
     bool success{};
     {
+        const unsigned long result{statement.find(' ')};
+
         const std::lock_guard lockGuard{this->lock};
 
         if (this->skiplist.find(statement.substr(0, result)) == nullptr) {
-            this->skiplist.insert(
-                std::make_shared<Entry>(std::string{statement.substr(0, result)}, std::string{value}));
+            this->skiplist.insert(std::make_shared<Entry>(std::string{statement.substr(0, result)},
+                                                          std::string{statement.substr(result + 1)}));
 
             success = true;
         }
@@ -341,8 +333,7 @@ auto Database::setRange(std::string_view statement) -> std::vector<std::byte> {
 
     result = statement.find(' ');
     const auto offset{std::stoul(std::string{statement.substr(0, result)})};
-    auto value{statement.substr(result + 2)};
-    value.remove_suffix(1);
+    const auto value{statement.substr(result + 1)};
 
     std::string size;
     {
@@ -402,15 +393,14 @@ auto Database::mset(std::string_view statement) -> std::vector<std::byte> {
     while (!statement.empty()) {
         unsigned long result{statement.find(' ')};
         const auto key{statement.substr(0, result)};
-        statement.remove_prefix(result + 2);
+        statement.remove_prefix(result + 1);
 
         result = statement.find(' ');
         std::string_view value;
         if (result != std::string_view::npos) {
-            value = statement.substr(0, result - 1);
+            value = statement.substr(0, result);
             statement.remove_prefix(result + 1);
         } else {
-            statement.remove_suffix(1);
             value = statement;
             statement = {};
         }
@@ -430,15 +420,14 @@ auto Database::msetnx(std::string_view statement) -> std::vector<std::byte> {
     while (!statement.empty()) {
         unsigned long result{statement.find(' ')};
         const auto key{statement.substr(0, result)};
-        statement.remove_prefix(result + 2);
+        statement.remove_prefix(result + 1);
 
         result = statement.find(' ');
         std::string_view value;
         if (result != std::string_view::npos) {
-            value = statement.substr(0, result - 1);
+            value = statement.substr(0, result);
             statement.remove_prefix(result + 1);
         } else {
-            statement.remove_suffix(1);
             value = statement;
             statement = {};
         }
@@ -523,9 +512,7 @@ auto Database::decrBy(const std::string_view statement) -> std::vector<std::byte
 
 auto Database::append(const std::string_view statement) -> std::vector<std::byte> {
     const unsigned long result{statement.find(' ')};
-    const auto key{statement.substr(0, result)};
-    auto value{statement.substr(result + 2)};
-    value.remove_suffix(1);
+    const auto key{statement.substr(0, result)}, value{statement.substr(result + 1)};
 
     std::string size;
     {
