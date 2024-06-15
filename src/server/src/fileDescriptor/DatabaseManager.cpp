@@ -41,14 +41,14 @@ DatabaseManager::DatabaseManager(const int fileDescriptor) : FileDescriptor{file
 
         std::span<const std::byte> data{buffer};
         auto count{*reinterpret_cast<const unsigned long *>(data.data())};
-        data = data.subspan(sizeof(decltype(count)));
+        data = data.subspan(sizeof(count));
 
         while (count > 0) {
             const auto index{*reinterpret_cast<const unsigned long *>(data.data())};
-            data = data.subspan(sizeof(decltype(index)));
+            data = data.subspan(sizeof(index));
 
             const auto size{*reinterpret_cast<const unsigned long *>(data.data())};
-            data = data.subspan(sizeof(decltype(size)));
+            data = data.subspan(sizeof(size));
 
             if (const auto result{this->databases.find(index)}; result != this->databases.cend())
                 result->second = Database{index, data.subspan(0, size)};
@@ -60,7 +60,7 @@ DatabaseManager::DatabaseManager(const int fileDescriptor) : FileDescriptor{file
 
         while (!data.empty()) {
             const auto size{*reinterpret_cast<const unsigned long *>(data.data())};
-            data = data.subspan(sizeof(decltype(size)));
+            data = data.subspan(sizeof(size));
 
             this->query(data.subspan(0, size));
             data = data.subspan(size);
@@ -179,9 +179,9 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
             break;
     }
 
-    const auto spanResponse{std::as_bytes(std::span{response})};
+    const auto bytes{std::as_bytes(std::span{response})};
 
-    return {spanResponse.cbegin(), spanResponse.cend()};
+    return {bytes.cbegin(), bytes.cend()};
 }
 
 auto DatabaseManager::writable() -> bool {
