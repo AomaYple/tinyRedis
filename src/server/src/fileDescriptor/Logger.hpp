@@ -7,7 +7,8 @@
 
 class Logger : public FileDescriptor {
 public:
-    [[nodiscard]] static auto create(std::source_location sourceLocation = std::source_location::current()) -> int;
+    [[nodiscard]] static auto create(std::string_view filename,
+                                     std::source_location sourceLocation = std::source_location::current()) -> int;
 
     explicit Logger(int fileDescriptor);
 

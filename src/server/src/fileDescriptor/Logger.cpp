@@ -6,8 +6,8 @@
 #include <fcntl.h>
 #include <linux/io_uring.h>
 
-auto Logger::create(const std::source_location sourceLocation) -> int {
-    const int fileDescriptor{open("log.log", O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR)};
+auto Logger::create(const std::string_view filename, const std::source_location sourceLocation) -> int {
+    const int fileDescriptor{open(filename.data(), O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR)};
     if (fileDescriptor == -1) {
         throw Exception{
             Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
