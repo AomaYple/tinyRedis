@@ -4,10 +4,11 @@
 
 #include <netinet/in.h>
 #include <source_location>
+#include <string_view>
 
 class Server : public FileDescriptor {
 public:
-    [[nodiscard]] static auto create() -> int;
+    [[nodiscard]] static auto create(std::string_view host, unsigned short port) -> int;
 
     explicit Server(int fileDescriptor);
 
@@ -29,7 +30,7 @@ private:
     static auto setSocketOption(int fileDescriptor,
                                 std::source_location sourceLocation = std::source_location::current()) -> void;
 
-    static auto translateIpAddress(in_addr &address,
+    static auto translateIpAddress(std::string_view host, in_addr &address,
                                    std::source_location sourceLocation = std::source_location::current()) -> void;
 
     static auto bind(int fileDescriptor, const sockaddr_in &address,

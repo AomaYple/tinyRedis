@@ -6,15 +6,15 @@
 #include <cstring>
 #include <linux/io_uring.h>
 
-auto Server::create() -> int {
+auto Server::create(const std::string_view host, const unsigned short port) -> int {
     const int fileDescriptor{socket()};
 
     setSocketOption(fileDescriptor);
 
     sockaddr_in address{};
     address.sin_family = AF_INET;
-    address.sin_port = htons(9090);
-    translateIpAddress(address.sin_addr);
+    address.sin_port = htons(port);
+    translateIpAddress(host, address.sin_addr);
 
     bind(fileDescriptor, address);
     listen(fileDescriptor);
@@ -51,8 +51,9 @@ auto Server::setSocketOption(const int fileDescriptor, const std::source_locatio
     }
 }
 
-auto Server::translateIpAddress(in_addr &address, const std::source_location sourceLocation) -> void {
-    if (inet_pton(AF_INET, "127.0.0.1", &address) != 1) {
+auto Server::translateIpAddress(const std::string_view host, in_addr &address,
+                                const std::source_location sourceLocation) -> void {
+    if (inet_pton(AF_INET, host.data(), &address) != 1) {
         throw Exception{
             Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
         };
