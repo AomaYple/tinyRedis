@@ -19,37 +19,39 @@ auto main() -> int {
     constexpr unsigned short port{9090};
     const Connection connection{host, port};
 
-    unsigned long id{};
+    unsigned long databaseIndex{};
     bool isTransaction{};
-    std::vector<std::string> transactions;
+    std::vector<std::string> transaction;
 
     while (true) {
-        std::print("{}:{}{}{}{}{}> ", host, port, id == 0 ? "" : "[", id == 0 ? "" : std::to_string(id),
-                   id == 0 ? "" : "]", isTransaction ? "(TX)" : "");
+        std::string stringDatabaseIndex;
+        if (databaseIndex != 0) stringDatabaseIndex = '[' + std::to_string(databaseIndex) + ']';
 
-        std::string inputBuffer;
-        std::getline(std::cin, inputBuffer);
+        std::print("{}:{}{}{}> ", host, port, stringDatabaseIndex, isTransaction ? "(TX)" : "");
 
-        if (inputBuffer.empty()) continue;
-        if (inputBuffer == "QUIT") break;
+        std::string input;
+        std::getline(std::cin, input);
 
-        if (inputBuffer == "MULTI") {
+        if (input.empty()) continue;
+        if (input == "QUIT") break;
+
+        if (input == "MULTI") {
             isTransaction = true;
             std::println("OK");
 
             continue;
         }
-        if (inputBuffer == "DISCARD") {
+        if (input == "DISCARD") {
             isTransaction = false;
-            transactions.clear();
+            transaction.clear();
             std::println("OK");
 
             continue;
         }
-        if (inputBuffer == "EXEC") {
-            if (!transactions.empty()) {
-                for (unsigned long i{}; i < transactions.size(); ++i) {
-                    connection.send(formatRequest(transactions[i], id));
+        if (input == "EXEC") {
+            if (!transaction.empty()) {
+                for (unsigned long i{}; i < transaction.size(); ++i) {
+                    connection.send(formatRequest(transaction[i], databaseIndex));
                     const std::vector data{connection.receive()};
 
                     std::println("{}{}", std::to_string(i + 1) + ") ",
@@ -57,13 +59,13 @@ auto main() -> int {
                 }
             } else std::println("(empty array)");
 
-            transactions.clear();
+            transaction.clear();
             isTransaction = false;
         } else if (isTransaction) {
-            transactions.emplace_back(inputBuffer);
+            transaction.emplace_back(input);
             std::println("QUEUED");
         } else {
-            connection.send(formatRequest(inputBuffer, id));
+            connection.send(formatRequest(input, databaseIndex));
             const std::vector data{connection.receive()};
 
             std::println("{}", std::string_view{reinterpret_cast<const char *>(data.data()), data.size()});
