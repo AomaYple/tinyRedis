@@ -15,8 +15,9 @@ auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std:
 auto main() -> int {
     shieldSignal();
 
-    const Connection connection;
-    const auto [host, port]{connection.getPeerName()};
+    constexpr std::string_view host{"127.0.0.1"};
+    constexpr unsigned short port{9090};
+    const Connection connection{host, port};
 
     unsigned long id{};
     bool isTransaction{};

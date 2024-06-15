@@ -3,6 +3,8 @@
 #include "../database/Database.hpp"
 #include "FileDescriptor.hpp"
 
+#include <source_location>
+
 class DatabaseManager : public FileDescriptor {
 public:
     [[nodiscard]] static auto create(std::source_location sourceLocation = std::source_location::current()) -> int;

@@ -3,12 +3,12 @@
 #include <netinet/in.h>
 #include <source_location>
 #include <span>
-#include <string>
+#include <string_view>
 #include <vector>
 
 class Connection {
 public:
-    Connection();
+    Connection(std::string_view host, unsigned short port);
 
     Connection(const Connection &) = delete;
 
@@ -20,9 +20,6 @@ public:
 
     ~Connection();
 
-    [[nodiscard]] auto getPeerName(std::source_location sourceLocation = std::source_location::current()) const
-        -> std::pair<std::string, std::string>;
-
     auto send(std::span<const std::byte> data,
               std::source_location sourceLocation = std::source_location::current()) const -> void;
 
@@ -32,12 +29,8 @@ public:
 private:
     static auto socket(std::source_location sourceLocation = std::source_location::current()) -> int;
 
-    static auto translateIpAddress(in_addr &address,
+    static auto translateIpAddress(std::string_view host, in_addr &address,
                                    std::source_location sourceLocation = std::source_location::current()) -> void;
-
-    static auto deTranslateIpAddress(const in_addr &address,
-                                     std::source_location sourceLocation = std::source_location::current())
-        -> std::string;
 
     static auto connect(int fileDescriptor, const sockaddr_in &address,
                         std::source_location sourceLocation = std::source_location::current()) -> void;

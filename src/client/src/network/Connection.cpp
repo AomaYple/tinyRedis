@@ -6,14 +6,14 @@
 #include <cstring>
 #include <utility>
 
-Connection::Connection() :
-    fileDescriptor{[] {
+Connection::Connection(const std::string_view host, const unsigned short port) :
+    fileDescriptor{[host, port] {
         const int fileDescriptor{socket()};
 
         sockaddr_in address{};
         address.sin_family = AF_INET;
-        address.sin_port = htons(9090);
-        translateIpAddress(address.sin_addr);
+        address.sin_port = htons(port);
+        translateIpAddress(host, address.sin_addr);
 
         connect(fileDescriptor, address);
 
@@ -33,18 +33,6 @@ auto Connection::operator=(Connection &&other) noexcept -> Connection & {
 }
 
 Connection::~Connection() { this->close(); }
-
-auto Connection::getPeerName(const std::source_location sourceLocation) const -> std::pair<std::string, std::string> {
-    sockaddr_in address{};
-    socklen_t addressLength{sizeof(address)};
-    if (getpeername(this->fileDescriptor, reinterpret_cast<sockaddr *>(&address), &addressLength) != 0) {
-        throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
-        };
-    }
-
-    return {deTranslateIpAddress(address.sin_addr), std::to_string(ntohs(address.sin_port))};
-}
 
 auto Connection::send(const std::span<const std::byte> data, const std::source_location sourceLocation) const -> void {
     if (const long reuslt{::send(this->fileDescriptor, data.data(), data.size(), 0)}; reuslt <= 0) {
@@ -90,24 +78,13 @@ auto Connection::socket(const std::source_location sourceLocation) -> int {
     return fileDescriptor;
 }
 
-auto Connection::translateIpAddress(in_addr &address, const std::source_location sourceLocation) -> void {
-    if (inet_pton(AF_INET, "127.0.0.1", &address) != 1) {
+auto Connection::translateIpAddress(const std::string_view host, in_addr &address,
+                                    const std::source_location sourceLocation) -> void {
+    if (inet_pton(AF_INET, host.data(), &address) != 1) {
         throw Exception{
             Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
         };
     }
-}
-
-auto Connection::deTranslateIpAddress(const in_addr &address, const std::source_location sourceLocation)
-    -> std::string {
-    std::string buffer(INET_ADDRSTRLEN, 0);
-    if (inet_ntop(AF_INET, &address, buffer.data(), buffer.size()) == nullptr) {
-        throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
-        };
-    }
-
-    return buffer;
 }
 
 auto Connection::connect(const int fileDescriptor, const sockaddr_in &address,
