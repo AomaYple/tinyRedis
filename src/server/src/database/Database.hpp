@@ -6,7 +6,7 @@
 
 class Database {
 public:
-    Database(unsigned long id, std::span<const std::byte> data);
+    Database(unsigned long index, std::span<const std::byte> data);
 
     Database(const Database &) = delete;
 
@@ -68,7 +68,7 @@ public:
     [[nodiscard]] auto append(std::string_view statement) -> std::vector<std::byte>;
 
 private:
-    unsigned long id;
+    unsigned long index;
     Skiplist skiplist;
     std::shared_mutex lock;
 };

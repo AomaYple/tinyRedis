@@ -19,12 +19,12 @@ static const std::vector wrongType{[] {
     return std::vector<std::byte>{spanWrongType.cbegin(), spanWrongType.cend()};
 }()};
 
-Database::Database(const unsigned long id, const std::span<const std::byte> data) : id{id}, skiplist{data} {}
+Database::Database(const unsigned long index, const std::span<const std::byte> data) : index{index}, skiplist{data} {}
 
 Database::Database(Database &&other) noexcept {
     const std::lock_guard lockGuard{other.lock};
 
-    this->id = other.id;
+    this->index = other.index;
     this->skiplist = std::move(other.skiplist);
 }
 
@@ -33,15 +33,15 @@ auto Database::operator=(Database &&other) noexcept -> Database & {
 
     if (this == &other) return *this;
 
-    this->id = other.id;
+    this->index = other.index;
     this->skiplist = std::move(other.skiplist);
 
     return *this;
 }
 
 auto Database::serialize() -> std::vector<std::byte> {
-    std::vector<std::byte> data{sizeof(this->id)};
-    *reinterpret_cast<decltype(this->id) *>(data.data()) = this->id;
+    std::vector<std::byte> data{sizeof(this->index)};
+    *reinterpret_cast<decltype(this->index) *>(data.data()) = this->index;
 
     const std::shared_lock sharedLock{this->lock};
 

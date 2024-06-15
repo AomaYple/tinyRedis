@@ -44,15 +44,15 @@ DatabaseManager::DatabaseManager(const int fileDescriptor) : FileDescriptor{file
         data = data.subspan(sizeof(decltype(count)));
 
         while (count > 0) {
-            const auto id{*reinterpret_cast<const unsigned long *>(data.data())};
-            data = data.subspan(sizeof(decltype(id)));
+            const auto index{*reinterpret_cast<const unsigned long *>(data.data())};
+            data = data.subspan(sizeof(decltype(index)));
 
             const auto size{*reinterpret_cast<const unsigned long *>(data.data())};
             data = data.subspan(sizeof(decltype(size)));
 
-            if (const auto result{this->databases.find(id)}; result != this->databases.cend())
-                result->second = Database{id, data.subspan(0, size)};
-            else this->databases.emplace(id, Database{id, data.subspan(0, size)});
+            if (const auto result{this->databases.find(index)}; result != this->databases.cend())
+                result->second = Database{index, data.subspan(0, size)};
+            else this->databases.emplace(index, Database{index, data.subspan(0, size)});
             data = data.subspan(size);
 
             --count;
@@ -74,16 +74,16 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
     const auto command{static_cast<Command>(request.front())};
     request = request.subspan(sizeof(command));
 
-    const auto id{*reinterpret_cast<const unsigned long *>(request.data())};
-    request = request.subspan(sizeof(id));
+    const auto index{*reinterpret_cast<const unsigned long *>(request.data())};
+    request = request.subspan(sizeof(index));
 
-    Database &database{this->databases.at(id)};
+    Database &database{this->databases.at(index)};
 
     const std::string_view statement{reinterpret_cast<const char *>(request.data()), request.size()};
     std::vector<std::byte> response;
     switch (command) {
         case Command::select:
-            response = this->select(id);
+            response = this->select(index);
             break;
         case Command::del:
             response = database.del(statement);
@@ -245,10 +245,10 @@ auto DatabaseManager::record(const std::span<const std::byte> request) -> void {
     ++this->writeCount;
 }
 
-auto DatabaseManager::select(const unsigned long id) -> std::vector<std::byte> {
+auto DatabaseManager::select(const unsigned long index) -> std::vector<std::byte> {
     const std::lock_guard lockGuard{this->lock};
 
-    this->databases.try_emplace(id, Database{id, std::span<const std::byte>{}});
+    this->databases.try_emplace(index, Database{index, std::span<const std::byte>{}});
 
     return {std::byte{'O'}, std::byte{'K'}};
 }

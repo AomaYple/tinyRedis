@@ -26,7 +26,7 @@ public:
 private:
     auto record(std::span<const std::byte> request) -> void;
 
-    [[nodiscard]] auto select(unsigned long id) -> std::vector<std::byte>;
+    [[nodiscard]] auto select(unsigned long index) -> std::vector<std::byte>;
 
     [[nodiscard]] auto serialize() -> std::vector<std::byte>;
 
