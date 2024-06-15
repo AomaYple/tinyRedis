@@ -168,7 +168,7 @@ auto Database::get(const std::string_view key) -> std::string {
     const std::shared_lock sharedLock{this->lock};
 
     if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-        if (entry->getType() == Entry::Type::string) return '"' + entry->getString() + '"';
+        if (entry->getType() == Entry::Type::string) return '"' + std::string{entry->getString()} + '"';
 
         return wrongType;
     }
@@ -219,7 +219,7 @@ auto Database::mget(const std::string_view keys) -> std::string {
 
             if (const std::shared_ptr entry{this->skiplist.find(std::string_view{view})};
                 entry != nullptr && entry->getType() == Entry::Type::string)
-                result += '"' + entry->getString() + '"';
+                result += '"' + std::string{entry->getString()} + '"';
             else result += nil;
 
             result += '\n';
@@ -264,26 +264,24 @@ auto Database::setRange(std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        if (std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) {
-                std::string &entryValue{entry->getString()};
+                std::string newValue{entry->getString()};
+                const unsigned long oldEnd{newValue.size()};
 
-                const unsigned long oldEnd{entryValue.size()};
+                if (const unsigned long end{offset + value.size()}; end > oldEnd) newValue.resize(end);
+                if (offset > oldEnd) newValue.replace(oldEnd, offset - oldEnd, offset - oldEnd, '\0');
 
-                if (const unsigned long end{offset + value.size()}; end > entryValue.size()) entryValue.resize(end);
-                if (offset > oldEnd) entryValue.replace(oldEnd, offset - oldEnd, offset - oldEnd, '\0');
+                newValue.replace(offset, value.size(), value);
+                size = std::to_string(newValue.size());
 
-                entryValue.replace(offset, value.size(), value);
-
-                size = std::to_string(entryValue.size());
+                entry->setValue(std::move(newValue));
             } else return wrongType;
         } else {
-            entry = std::make_shared<Entry>(std::string{key}, std::string(offset, '\0'));
-            entry->getString() += value;
+            std::string newValue{std::string(offset, '\0') + std::string{value}};
+            size = std::to_string(newValue.size());
 
-            size = std::to_string(entry->getString().size());
-
-            this->skiplist.insert(std::move(entry));
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::move(newValue)));
         }
     }
 
@@ -381,11 +379,13 @@ auto Database::crement(const std::string_view key, const long digital, const boo
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            if (entry->getType() == Entry::Type::string && isInteger(entry->getString())) {
-                entry->getString() = std::to_string(plus ? std::stol(entry->getString()) + digital :
-                                                           std::stol(entry->getString()) - digital);
+            if (const std::string oldValue{entry->getString()};
+                entry->getType() == Entry::Type::string && isInteger(oldValue)) {
+                std::string newValue{
+                    std::to_string(plus ? std::stol(oldValue) + digital : std::stol(oldValue) - digital)};
 
-                size = entry->getString();
+                size = newValue;
+                entry->setValue(std::move(newValue));
             } else return wrongType;
         } else {
             size = std::to_string(digital);
@@ -425,9 +425,12 @@ auto Database::append(const std::string_view statement) -> std::string {
 
     if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
         if (entry->getType() == Entry::Type::string) {
-            entry->getString() += value;
+            std::string newValue{std::string{entry->getString()} + std::string{value}};
+            std::string size{std::to_string(newValue.size())};
 
-            return std::to_string(entry->getString().size());
+            entry->setValue(std::move(newValue));
+
+            return size;
         }
 
         return wrongType;
