@@ -92,9 +92,9 @@ auto shieldSignal(const std::source_location sourceLocation) -> void {
 }
 
 auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std::byte> {
-    const unsigned long result{data.find(' ')};
-    const auto command{data.substr(0, result)};
-    auto statement{data.substr(result + 1)};
+    const unsigned long space{data.find(' ')};
+    const auto command{data.substr(0, space)};
+    auto statement{data.substr(space + 1)};
 
     Command commandType{};
     if (command == "SELECT") {
