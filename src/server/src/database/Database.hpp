@@ -38,6 +38,8 @@ public:
 
     [[nodiscard]] auto set(std::string_view statement) -> std::vector<std::byte>;
 
+    [[nodiscard]] auto rawGet(std::string_view key) const -> std::vector<std::byte>;
+
     [[nodiscard]] auto get(std::string_view key) -> std::vector<std::byte>;
 
     [[nodiscard]] auto getRange(std::string_view statement) -> std::vector<std::byte>;

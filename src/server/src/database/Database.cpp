@@ -227,9 +227,7 @@ auto Database::set(const std::string_view statement) -> std::vector<std::byte> {
     return {ok.cbegin(), ok.cend()};
 }
 
-auto Database::get(const std::string_view key) -> std::vector<std::byte> {
-    const std::shared_lock sharedLock{this->lock};
-
+auto Database::rawGet(const std::string_view key) const -> std::vector<std::byte> {
     if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
         if (entry->getType() == Entry::Type::string) {
             std::vector response{std::byte{'"'}};
@@ -246,6 +244,12 @@ auto Database::get(const std::string_view key) -> std::vector<std::byte> {
     }
 
     return {nil.cbegin(), nil.cend()};
+}
+
+auto Database::get(const std::string_view key) -> std::vector<std::byte> {
+    const std::shared_lock sharedLock{this->lock};
+
+    return this->rawGet(key);
 }
 
 auto Database::getRange(std::string_view statement) -> std::vector<std::byte> {
@@ -290,12 +294,8 @@ auto Database::mget(const std::string_view keys) -> std::vector<std::byte> {
             const auto spanCount{std::as_bytes(std::span{stringCount})};
             response.insert(response.cend(), spanCount.cbegin(), spanCount.cend());
 
-            if (const std::shared_ptr entry{this->skiplist.find(std::string_view{view})};
-                entry != nullptr && entry->getType() == Entry::Type::string) {
-                const std::string value{'"' + entry->getString() + '"'};
-                const auto spanValue{std::as_bytes(std::span{value})};
-                response.insert(response.cend(), spanValue.cbegin(), spanValue.cend());
-            } else response.insert(response.cend(), nil.cbegin(), nil.cend());
+            const std::vector result{this->rawGet(std::string_view{view})};
+            response.insert(response.cend(), result.cbegin(), result.cend());
 
             response.emplace_back(std::byte{'\n'});
         }
