@@ -80,7 +80,7 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
     Database &database{this->databases.at(index)};
 
     const std::string_view statement{reinterpret_cast<const char *>(request.data()), request.size()};
-    std::vector<std::byte> response;
+    std::string response;
     switch (command) {
         case Command::select:
             response = this->select(index);
@@ -89,9 +89,6 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
             response = database.del(statement);
             this->record(requestCopy);
 
-            break;
-        case Command::dump:
-            response = database.dump(statement);
             break;
         case Command::exists:
             response = database.exists(statement);
@@ -182,7 +179,9 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
             break;
     }
 
-    return response;
+    const auto spanResponse{std::as_bytes(std::span{response})};
+
+    return {spanResponse.cbegin(), spanResponse.cend()};
 }
 
 auto DatabaseManager::writable() -> bool {
@@ -245,12 +244,12 @@ auto DatabaseManager::record(const std::span<const std::byte> request) -> void {
     ++this->writeCount;
 }
 
-auto DatabaseManager::select(const unsigned long index) -> std::vector<std::byte> {
+auto DatabaseManager::select(const unsigned long index) -> std::string {
     const std::lock_guard lockGuard{this->lock};
 
     this->databases.try_emplace(index, Database{index, std::span<const std::byte>{}});
 
-    return {std::byte{'O'}, std::byte{'K'}};
+    return "OK";
 }
 
 auto DatabaseManager::serialize() -> std::vector<std::byte> {

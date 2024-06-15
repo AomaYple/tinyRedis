@@ -104,7 +104,6 @@ auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std:
         id = std::stoul(std::string{statement});
         statement = {};
     } else if (command == "DEL") commandType = Command::del;
-    else if (command == "DUMP") commandType = Command::dump;
     else if (command == "EXISTS") commandType = Command::exists;
     else if (command == "MOVE") commandType = Command::move;
     else if (command == "RENAME") commandType = Command::rename;
