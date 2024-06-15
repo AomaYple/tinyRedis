@@ -410,9 +410,9 @@ auto Database::incrBy(const std::string_view statement) -> std::string {
 auto Database::decr(const std::string_view key) -> std::string { return this->crement(key, 1, false); }
 
 auto Database::decrBy(const std::string_view statement) -> std::string {
-    const unsigned long result{statement.find(' ')};
-    const auto key{statement.substr(0, result)};
-    const auto increment{std::stol(std::string{statement.substr(result + 1)})};
+    const unsigned long space{statement.find(' ')};
+    const auto key{statement.substr(0, space)};
+    const auto increment{std::stol(std::string{statement.substr(space + 1)})};
 
     return this->crement(key, increment, false);
 }
