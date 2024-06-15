@@ -11,6 +11,16 @@ public:
 
     explicit Server(int fileDescriptor);
 
+    Server(const Server &) = delete;
+
+    Server(Server &&) = default;
+
+    auto operator=(const Server &) -> Server & = delete;
+
+    auto operator=(Server &&) -> Server & = delete;
+
+    ~Server() = default;
+
     [[nodiscard]] auto accept() const noexcept -> Awaiter;
 
 private:

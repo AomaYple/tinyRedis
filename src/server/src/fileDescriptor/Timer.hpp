@@ -10,6 +10,16 @@ public:
 
     explicit Timer(int fileDescriptor) noexcept;
 
+    Timer(const Timer &) = delete;
+
+    Timer(Timer &&) = default;
+
+    auto operator=(const Timer &) -> Timer & = delete;
+
+    auto operator=(Timer &&) -> Timer & = delete;
+
+    ~Timer() = default;
+
     [[nodiscard]] auto timing() noexcept -> Awaiter;
 
 private:

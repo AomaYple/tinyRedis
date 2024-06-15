@@ -11,6 +11,16 @@ public:
 
     explicit Logger(int fileDescriptor);
 
+    Logger(const Logger &) = delete;
+
+    Logger(Logger &&) = default;
+
+    auto operator=(const Logger &) -> Logger & = delete;
+
+    auto operator=(Logger &&) -> Logger & = delete;
+
+    ~Logger() = default;
+
     auto push(Log &&log) -> void;
 
     [[nodiscard]] auto writable() const noexcept -> bool;
