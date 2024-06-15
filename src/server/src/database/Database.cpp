@@ -3,7 +3,7 @@
 #include <mutex>
 #include <ranges>
 
-static constexpr std::string ok{"OK"}, integer{"(integer) "}, nil{"nil"};
+static constexpr std::string ok{"OK"}, integer{"(integer) "}, nil{"(nil)"};
 static const std::string wrongType{"(error) WRONGTYPE Operation against a key holding the wrong kind of value"};
 
 Database::Database(const unsigned long index, const std::span<const std::byte> data) : index{index}, skiplist{data} {}
