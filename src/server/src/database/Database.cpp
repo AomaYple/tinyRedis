@@ -498,17 +498,17 @@ auto Database::hgetAll(const std::string_view key) -> std::string {
 }
 
 auto Database::hincrBy(std::string_view statement) -> std::string {
-    unsigned long space{statement.find(' ')};
-    const auto key{statement.substr(0, space)};
-    statement.remove_prefix(space + 1);
-
-    space = statement.find(' ');
-    const auto field{statement.substr(0, space)};
-    const auto crement{std::stol(std::string{statement.substr(space + 1)})};
-
     std::string size;
 
     {
+        unsigned long space{statement.find(' ')};
+        const auto key{statement.substr(0, space)};
+        statement.remove_prefix(space + 1);
+
+        space = statement.find(' ');
+        const auto field{statement.substr(0, space)};
+        const auto crement{std::stol(std::string{statement.substr(space + 1)})};
+
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
@@ -577,6 +577,57 @@ auto Database::hlen(const std::string_view key) -> std::string {
     }
 
     return integer + size;
+}
+
+auto Database::hset(std::string_view statement) -> std::string {
+    unsigned long count{};
+
+    {
+        unsigned long space{statement.find(' ')};
+        const auto key{statement.substr(0, space)};
+        statement.remove_prefix(space + 1);
+
+        std::unordered_map<std::string, std::string> newHash;
+        auto isNew{true};
+
+        const std::lock_guard lockGuard{this->lock};
+
+        const std::shared_ptr entry{this->skiplist.find(key)};
+        if (entry != nullptr) {
+            if (entry->getType() == Entry::Type::hash) isNew = false;
+            else return wrongType;
+        }
+
+        while (!statement.empty()) {
+            space = statement.find(' ');
+            std::string field{statement.substr(0, space)};
+            statement.remove_prefix(space + 1);
+
+            space = statement.find(' ');
+            std::string_view value;
+            if (space != std::string_view::npos) {
+                value = statement.substr(0, space);
+                statement.remove_prefix(space + 1);
+            } else {
+                value = statement;
+                statement = {};
+            }
+
+            if (!isNew) {
+                std::unordered_map<std::string, std::string> &hash{entry->getHash()};
+
+                if (!hash.contains(field)) ++count;
+                hash[std::move(field)] = std::string{value};
+            } else newHash.emplace(std::move(field), std::string{value});
+        }
+
+        if (isNew) {
+            count = newHash.size();
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::move(newHash)));
+        }
+    }
+
+    return integer + std::to_string(count);
 }
 
 auto Database::crement(const std::string_view key, const long digital, const bool plus) -> std::string {

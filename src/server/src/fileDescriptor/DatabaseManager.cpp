@@ -202,6 +202,11 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
         case Command::hlen:
             response = database.hlen(statement);
             break;
+        case Command::hset:
+            response = database.hset(statement);
+            this->record(requestCopy);
+
+            break;
     }
 
     const auto bytes{std::as_bytes(std::span{response})};
