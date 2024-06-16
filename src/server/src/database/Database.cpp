@@ -6,6 +6,14 @@
 static constexpr std::string ok{"OK"}, integer{"(integer) "}, nil{"(nil)"};
 static const std::string wrongType{"(error) WRONGTYPE Operation against a key holding the wrong kind of value"};
 
+constexpr auto isInteger(const std::string &integer) {
+    try {
+        std::stol(integer);
+    } catch (const std::invalid_argument &) { return false; }
+
+    return true;
+}
+
 Database::Database(const unsigned long index, const std::span<const std::byte> data) : index{index}, skiplist{data} {}
 
 Database::Database(Database &&other) noexcept {
@@ -360,14 +368,6 @@ auto Database::msetnx(std::string_view statement) -> std::string {
     }
 
     return integer + std::to_string(entries.size());
-}
-
-constexpr auto isInteger(const std::string &integer) {
-    try {
-        std::stol(integer);
-    } catch (const std::invalid_argument &) { return false; }
-
-    return true;
 }
 
 auto Database::incr(const std::string_view key) -> std::string { return this->crement(key, 1, true); }
