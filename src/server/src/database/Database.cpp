@@ -455,3 +455,20 @@ auto Database::hdel(std::string_view statement) -> std::string {
 
     return integer + std::to_string(count);
 }
+
+auto Database::hexists(const std::string_view statement) -> std::string {
+    {
+        const unsigned long space{statement.find(' ')};
+        const auto key{statement.substr(0, space)}, field{statement.substr(space + 1)};
+
+        const std::shared_lock sharedLock{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::hash) {
+                if (entry->getHash().contains(std::string{field})) return integer + '1';
+            } else return wrongType;
+        }
+    }
+
+    return integer + '0';
+}

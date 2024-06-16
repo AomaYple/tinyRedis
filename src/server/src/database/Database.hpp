@@ -65,6 +65,8 @@ public:
 
     [[nodiscard]] auto hdel(std::string_view statement) -> std::string;
 
+    [[nodiscard]] auto hexists(std::string_view statement) -> std::string;
+
 private:
     unsigned long index;
     Skiplist skiplist;

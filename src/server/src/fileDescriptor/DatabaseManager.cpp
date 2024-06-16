@@ -182,6 +182,9 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
             this->record(requestCopy);
 
             break;
+        case Command::hexists:
+            response = database.hexists(statement);
+            break;
     }
 
     const auto bytes{std::as_bytes(std::span{response})};
