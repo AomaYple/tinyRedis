@@ -4,7 +4,8 @@
 #include <ranges>
 
 static constexpr std::string ok{"OK"}, integer{"(integer) "}, nil{"(nil)"};
-static const std::string wrongType{"(error) WRONGTYPE Operation against a key holding the wrong kind of value"};
+static const std::string wrongType{"(error) WRONGTYPE Operation against a key holding the wrong kind of value"},
+    wrongInteger{"(error) ERR value is not an integer or out of range"};
 
 constexpr auto isInteger(const std::string &integer) {
     try {
@@ -507,7 +508,7 @@ auto Database::crement(const std::string_view key, const long digital, const boo
                 entry->getType() == Entry::Type::string && isInteger(entryValue)) {
                 entryValue = size =
                     std::to_string(plus ? std::stol(entryValue) + digital : std::stol(entryValue) - digital);
-            } else return wrongType;
+            } else return wrongInteger;
         } else {
             size = std::to_string(digital);
 
