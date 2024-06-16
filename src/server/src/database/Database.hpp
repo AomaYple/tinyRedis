@@ -77,6 +77,8 @@ public:
 
     [[nodiscard]] auto hset(std::string_view statement) -> std::string;
 
+    [[nodiscard]] auto hvals(std::string_view key) -> std::string;
+
 private:
     [[nodiscard]] auto crement(std::string_view key, long digital, bool plus) -> std::string;
 

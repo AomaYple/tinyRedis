@@ -29,5 +29,6 @@ enum class Command : unsigned char {
     hincrBy,
     hkeys,
     hlen,
-    hset
+    hset,
+    hvals
 };

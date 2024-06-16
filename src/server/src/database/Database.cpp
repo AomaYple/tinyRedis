@@ -630,6 +630,32 @@ auto Database::hset(std::string_view statement) -> std::string {
     return integer + std::to_string(count);
 }
 
+auto Database::hvals(const std::string_view key) -> std::string {
+    std::string result;
+
+    {
+        const std::shared_lock sharedLock{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::hash) {
+                unsigned long count{1};
+                for (const auto &value : entry->getHash() | std::views::values) {
+                    result += std::to_string(count++) + ") ";
+                    result += '"' + value + '"' + '\n';
+                }
+            } else return wrongType;
+        }
+    }
+
+    if (!result.empty()) {
+        result.pop_back();
+
+        return result;
+    }
+
+    return emptyArray;
+}
+
 auto Database::crement(const std::string_view key, const long digital, const bool plus) -> std::string {
     std::string size;
 
