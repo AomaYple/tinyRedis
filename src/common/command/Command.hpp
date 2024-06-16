@@ -18,7 +18,7 @@ enum class Command : unsigned char {
     mset,
     msetnx,
     incr,
-    incrby,
+    incrBy,
     decr,
     decrBy,
     append,
