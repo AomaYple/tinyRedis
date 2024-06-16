@@ -26,5 +26,6 @@ enum class Command : unsigned char {
     hexists,
     hget,
     hgetAll,
-    hincrBy
+    hincrBy,
+    hkeys
 };

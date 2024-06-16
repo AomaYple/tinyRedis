@@ -3,7 +3,7 @@
 #include <mutex>
 #include <ranges>
 
-static constexpr std::string ok{"OK"}, integer{"(integer) "}, nil{"(nil)"};
+static constexpr std::string ok{"OK"}, integer{"(integer) "}, nil{"(nil)"}, emptyArray{"(empty array)"};
 static const std::string wrongType{"(error) WRONGTYPE Operation against a key holding the wrong kind of value"},
     wrongInteger{"(error) ERR value is not an integer or out of range"};
 
@@ -494,7 +494,7 @@ auto Database::hgetAll(const std::string_view key) -> std::string {
         return result;
     }
 
-    return "(empty array)";
+    return emptyArray;
 }
 
 auto Database::hincrBy(std::string_view statement) -> std::string {
@@ -536,6 +536,32 @@ auto Database::hincrBy(std::string_view statement) -> std::string {
     }
 
     return integer + size;
+}
+
+auto Database::hkeys(const std::string_view key) -> std::string {
+    std::string result;
+
+    {
+        const std::shared_lock sharedLock{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::hash) {
+                unsigned long count{1};
+                for (const auto &filed : entry->getHash() | std::views::keys) {
+                    result += std::to_string(count++) + ") ";
+                    result += '"' + filed + '"' + '\n';
+                }
+            } else return wrongType;
+        }
+    }
+
+    if (!result.empty()) {
+        result.pop_back();
+
+        return result;
+    }
+
+    return emptyArray;
 }
 
 auto Database::crement(const std::string_view key, const long digital, const bool plus) -> std::string {
