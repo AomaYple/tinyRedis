@@ -370,28 +370,6 @@ constexpr auto isInteger(const std::string &integer) {
     return true;
 }
 
-auto Database::crement(const std::string_view key, const long digital, const bool plus) -> std::string {
-    std::string size;
-
-    {
-        const std::lock_guard lockGuard{this->lock};
-
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            if (std::string & entryValue{entry->getString()};
-                entry->getType() == Entry::Type::string && isInteger(entryValue)) {
-                entryValue = size =
-                    std::to_string(plus ? std::stol(entryValue) + digital : std::stol(entryValue) - digital);
-            } else return wrongType;
-        } else {
-            size = std::to_string(digital);
-
-            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{size}));
-        }
-    }
-
-    return integer + size;
-}
-
 auto Database::incr(const std::string_view key) -> std::string { return this->crement(key, 1, true); }
 
 auto Database::incrBy(const std::string_view statement) -> std::string {
@@ -516,4 +494,26 @@ auto Database::hgetAll(const std::string_view key) -> std::string {
     }
 
     return "(empty array)";
+}
+
+auto Database::crement(const std::string_view key, const long digital, const bool plus) -> std::string {
+    std::string size;
+
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (std::string & entryValue{entry->getString()};
+                entry->getType() == Entry::Type::string && isInteger(entryValue)) {
+                entryValue = size =
+                    std::to_string(plus ? std::stol(entryValue) + digital : std::stol(entryValue) - digital);
+            } else return wrongType;
+        } else {
+            size = std::to_string(digital);
+
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{size}));
+        }
+    }
+
+    return integer + size;
 }

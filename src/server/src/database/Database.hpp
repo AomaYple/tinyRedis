@@ -51,8 +51,6 @@ public:
 
     [[nodiscard]] auto msetnx(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto crement(std::string_view key, long digital, bool plus) -> std::string;
-
     [[nodiscard]] auto incr(std::string_view key) -> std::string;
 
     [[nodiscard]] auto incrBy(std::string_view statement) -> std::string;
@@ -72,6 +70,8 @@ public:
     [[nodiscard]] auto hgetAll(std::string_view key) -> std::string;
 
 private:
+    [[nodiscard]] auto crement(std::string_view key, long digital, bool plus) -> std::string;
+
     unsigned long index;
     Skiplist skiplist;
     std::shared_mutex lock;
