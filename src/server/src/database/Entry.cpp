@@ -62,23 +62,19 @@ auto Entry::getKey() const noexcept -> std::string_view { return this->key; }
 
 auto Entry::setKey(std::string &&key) noexcept -> void { this->key = std::move(key); }
 
-auto Entry::getString() const -> std::string_view { return std::get<std::string>(this->value); }
+auto Entry::getString() -> std::string & { return std::get<std::string>(this->value); }
 
-auto Entry::getHash() const -> const std::unordered_map<std::string, std::string> & {
+auto Entry::getHash() -> std::unordered_map<std::string, std::string> & {
     return std::get<std::unordered_map<std::string, std::string>>(this->value);
 }
 
-auto Entry::getList() const -> const std::deque<std::string> & {
-    return std::get<std::deque<std::string>>(this->value);
-}
+auto Entry::getList() -> std::deque<std::string> & { return std::get<std::deque<std::string>>(this->value); }
 
-auto Entry::getSet() const -> const std::unordered_set<std::string> & {
+auto Entry::getSet() -> std::unordered_set<std::string> & {
     return std::get<std::unordered_set<std::string>>(this->value);
 }
 
-auto Entry::getSortedSet() const -> const std::set<SortedSetElement> & {
-    return std::get<std::set<SortedSetElement>>(this->value);
-}
+auto Entry::getSortedSet() -> std::set<SortedSetElement> & { return std::get<std::set<SortedSetElement>>(this->value); }
 
 auto Entry::setValue(std::string &&value) noexcept -> void {
     this->type = Type::string;

@@ -38,15 +38,15 @@ public:
 
     auto setKey(std::string &&key) noexcept -> void;
 
-    [[nodiscard]] auto getString() const -> std::string_view;
+    [[nodiscard]] auto getString() -> std::string &;
 
-    [[nodiscard]] auto getHash() const -> const std::unordered_map<std::string, std::string> &;
+    [[nodiscard]] auto getHash() -> std::unordered_map<std::string, std::string> &;
 
-    [[nodiscard]] auto getList() const -> const std::deque<std::string> &;
+    [[nodiscard]] auto getList() -> std::deque<std::string> &;
 
-    [[nodiscard]] auto getSet() const -> const std::unordered_set<std::string> &;
+    [[nodiscard]] auto getSet() -> std::unordered_set<std::string> &;
 
-    [[nodiscard]] auto getSortedSet() const -> const std::set<SortedSetElement> &;
+    [[nodiscard]] auto getSortedSet() -> std::set<SortedSetElement> &;
 
     auto setValue(std::string &&value) noexcept -> void;
 

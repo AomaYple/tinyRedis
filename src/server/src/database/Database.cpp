@@ -168,7 +168,7 @@ auto Database::get(const std::string_view key) -> std::string {
     const std::shared_lock sharedLock{this->lock};
 
     if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-        if (entry->getType() == Entry::Type::string) return '"' + std::string{entry->getString()} + '"';
+        if (entry->getType() == Entry::Type::string) return '"' + entry->getString() + '"';
 
         return wrongType;
     }
@@ -219,7 +219,7 @@ auto Database::mget(const std::string_view keys) -> std::string {
 
             if (const std::shared_ptr entry{this->skiplist.find(std::string_view{view})};
                 entry != nullptr && entry->getType() == Entry::Type::string)
-                result += '"' + std::string{entry->getString()} + '"';
+                result += '"' + entry->getString() + '"';
             else result += nil;
 
             result += '\n';
@@ -266,16 +266,14 @@ auto Database::setRange(std::string_view statement) -> std::string {
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) {
-                std::string newValue{entry->getString()};
-                const unsigned long oldEnd{newValue.size()};
+                std::string &entryValue{entry->getString()};
+                const unsigned long oldEnd{entryValue.size()};
 
-                if (const unsigned long end{offset + value.size()}; end > oldEnd) newValue.resize(end);
-                if (offset > oldEnd) newValue.replace(oldEnd, offset - oldEnd, offset - oldEnd, '\0');
+                if (const unsigned long end{offset + value.size()}; end > oldEnd) entryValue.resize(end);
+                if (offset > oldEnd) entryValue.replace(oldEnd, offset - oldEnd, offset - oldEnd, '\0');
 
-                newValue.replace(offset, value.size(), value);
-                size = std::to_string(newValue.size());
-
-                entry->setValue(std::move(newValue));
+                entryValue.replace(offset, value.size(), value);
+                size = std::to_string(entryValue.size());
             } else return wrongType;
         } else {
             std::string newValue{std::string(offset, '\0') + std::string{value}};
@@ -379,13 +377,10 @@ auto Database::crement(const std::string_view key, const long digital, const boo
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            if (const std::string oldValue{entry->getString()};
-                entry->getType() == Entry::Type::string && isInteger(oldValue)) {
-                std::string newValue{
-                    std::to_string(plus ? std::stol(oldValue) + digital : std::stol(oldValue) - digital)};
-
-                size = newValue;
-                entry->setValue(std::move(newValue));
+            if (std::string & entryValue{entry->getString()};
+                entry->getType() == Entry::Type::string && isInteger(entryValue)) {
+                entryValue = size =
+                    std::to_string(plus ? std::stol(entryValue) + digital : std::stol(entryValue) - digital);
             } else return wrongType;
         } else {
             size = std::to_string(digital);
@@ -425,12 +420,10 @@ auto Database::append(const std::string_view statement) -> std::string {
 
     if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
         if (entry->getType() == Entry::Type::string) {
-            std::string newValue{std::string{entry->getString()} + std::string{value}};
-            std::string size{std::to_string(newValue.size())};
+            std::string &entryValue{entry->getString()};
+            entryValue += value;
 
-            entry->setValue(std::move(newValue));
-
-            return size;
+            return std::to_string(entryValue.size());
         }
 
         return wrongType;
@@ -439,4 +432,26 @@ auto Database::append(const std::string_view statement) -> std::string {
     this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
 
     return std::to_string(value.size());
+}
+
+auto Database::hdel(std::string_view statement) -> std::string {
+    unsigned long count{};
+
+    {
+        const unsigned long space{statement.find(' ')};
+        const auto key{statement.substr(0, space)};
+        statement.remove_prefix(space + 1);
+
+        const std::lock_guard lockGuard{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::hash) {
+                for (std::unordered_map<std::string, std::string> &hash{entry->getHash()};
+                     const auto &view : statement | std::views::split(' '))
+                    if (hash.erase(std::string{std::string_view{view}}) == 1) ++count;
+            } else return wrongType;
+        }
+    }
+
+    return integer + std::to_string(count);
 }

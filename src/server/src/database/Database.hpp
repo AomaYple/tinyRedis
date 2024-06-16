@@ -63,6 +63,8 @@ public:
 
     [[nodiscard]] auto append(std::string_view statement) -> std::string;
 
+    [[nodiscard]] auto hdel(std::string_view statement) -> std::string;
+
 private:
     unsigned long index;
     Skiplist skiplist;
