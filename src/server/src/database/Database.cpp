@@ -452,7 +452,7 @@ auto Database::hexists(const std::string_view statement) -> std::string {
     return integer + '0';
 }
 
-auto Database::hget(std::string_view statement) -> std::string {
+auto Database::hget(const std::string_view statement) -> std::string {
     const unsigned long space{statement.find(' ')};
     const auto key{statement.substr(0, space)}, field{statement.substr(space + 1)};
 
@@ -495,6 +495,47 @@ auto Database::hgetAll(const std::string_view key) -> std::string {
     }
 
     return "(empty array)";
+}
+
+auto Database::hincrBy(std::string_view statement) -> std::string {
+    unsigned long space{statement.find(' ')};
+    const auto key{statement.substr(0, space)};
+    statement.remove_prefix(space + 1);
+
+    space = statement.find(' ');
+    const auto field{statement.substr(0, space)};
+    const auto crement{std::stol(std::string{statement.substr(space + 1)})};
+
+    std::string size;
+
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            std::unordered_map<std::string, std::string> &hash{entry->getHash()};
+
+            if (const auto result{hash.find(std::string{field})}; result != hash.cend()) {
+                if (isInteger(result->second)) {
+                    result->second = std::to_string(std::stol(result->second) + crement);
+
+                    size = result->second;
+                } else return wrongInteger;
+            } else {
+                size = std::to_string(crement);
+                hash.emplace(std::string{field}, size);
+            }
+        } else {
+            size = std::to_string(crement);
+
+            this->skiplist.insert(std::make_shared<Entry>(
+                std::string{
+                    key
+            },
+                std::unordered_map{std::pair{std::string{field}, size}}));
+        }
+    }
+
+    return integer + size;
 }
 
 auto Database::crement(const std::string_view key, const long digital, const bool plus) -> std::string {

@@ -69,6 +69,8 @@ public:
 
     [[nodiscard]] auto hgetAll(std::string_view key) -> std::string;
 
+    [[nodiscard]] auto hincrBy(std::string_view statement) -> std::string;
+
 private:
     [[nodiscard]] auto crement(std::string_view key, long digital, bool plus) -> std::string;
 

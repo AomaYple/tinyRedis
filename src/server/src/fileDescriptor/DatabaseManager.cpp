@@ -191,6 +191,11 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
         case Command::hgetAll:
             response = database.hgetAll(statement);
             break;
+        case Command::hincrBy:
+            response = database.hincrBy(statement);
+            this->record(requestCopy);
+
+            break;
     }
 
     const auto bytes{std::as_bytes(std::span{response})};
