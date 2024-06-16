@@ -498,7 +498,7 @@ auto Database::hgetAll(const std::string_view key) -> std::string {
 }
 
 auto Database::hincrBy(std::string_view statement) -> std::string {
-    std::string size;
+    std::string digital;
 
     {
         unsigned long space{statement.find(' ')};
@@ -518,24 +518,24 @@ auto Database::hincrBy(std::string_view statement) -> std::string {
                 if (isInteger(result->second)) {
                     result->second = std::to_string(std::stol(result->second) + crement);
 
-                    size = result->second;
+                    digital = result->second;
                 } else return wrongInteger;
             } else {
-                size = std::to_string(crement);
-                hash.emplace(std::string{field}, size);
+                digital = std::to_string(crement);
+                hash.emplace(std::string{field}, digital);
             }
         } else {
-            size = std::to_string(crement);
+            digital = std::to_string(crement);
 
             this->skiplist.insert(std::make_shared<Entry>(
                 std::string{
                     key
             },
-                std::unordered_map{std::pair{std::string{field}, size}}));
+                std::unordered_map{std::pair{std::string{field}, digital}}));
         }
     }
 
-    return integer + size;
+    return integer + digital;
 }
 
 auto Database::hkeys(const std::string_view key) -> std::string {
@@ -565,18 +565,18 @@ auto Database::hkeys(const std::string_view key) -> std::string {
 }
 
 auto Database::hlen(const std::string_view key) -> std::string {
-    std::string size{'0'};
+    std::string length{'0'};
 
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            if (entry->getType() == Entry::Type::hash) size = std::to_string(entry->getHash().size());
+            if (entry->getType() == Entry::Type::hash) length = std::to_string(entry->getHash().size());
             else return wrongType;
         }
     }
 
-    return integer + size;
+    return integer + length;
 }
 
 auto Database::hset(std::string_view statement) -> std::string {
