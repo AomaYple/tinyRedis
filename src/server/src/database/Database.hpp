@@ -67,6 +67,8 @@ public:
 
     [[nodiscard]] auto hexists(std::string_view statement) -> std::string;
 
+    [[nodiscard]] auto hget(std::string_view statement) -> std::string;
+
 private:
     unsigned long index;
     Skiplist skiplist;

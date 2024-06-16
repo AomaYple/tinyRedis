@@ -185,6 +185,9 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
         case Command::hexists:
             response = database.hexists(statement);
             break;
+        case Command::hget:
+            response = database.hget(statement);
+            break;
     }
 
     const auto bytes{std::as_bytes(std::span{response})};

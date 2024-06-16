@@ -472,3 +472,21 @@ auto Database::hexists(const std::string_view statement) -> std::string {
 
     return integer + '0';
 }
+
+auto Database::hget(std::string_view statement) -> std::string {
+    const unsigned long space{statement.find(' ')};
+    const auto key{statement.substr(0, space)}, field{statement.substr(space + 1)};
+
+    const std::shared_lock sharedLock{this->lock};
+
+    if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (entry->getType() == Entry::Type::hash) {
+            const std::unordered_map<std::string, std::string> &hash{entry->getHash()};
+
+            if (const auto result{hash.find(std::string{field})}; result != hash.cend())
+                return '"' + result->second + '"';
+        } else return wrongType;
+    }
+
+    return nil;
+}
