@@ -73,6 +73,8 @@ public:
 
     [[nodiscard]] auto hkeys(std::string_view key) -> std::string;
 
+    [[nodiscard]] auto hlen(std::string_view key) -> std::string;
+
 private:
     [[nodiscard]] auto crement(std::string_view key, long digital, bool plus) -> std::string;
 

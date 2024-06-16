@@ -129,6 +129,7 @@ auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std:
     else if (command == "HGETALL") commandType = Command::hgetAll;
     else if (command == "HINCRBY") commandType = Command::hincrBy;
     else if (command == "HKEYS") commandType = Command::hkeys;
+    else if (command == "HLEN") commandType = Command::hlen;
 
     std::vector buffer{std::byte{std::to_underlying(commandType)}};
 

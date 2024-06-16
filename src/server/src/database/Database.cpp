@@ -564,6 +564,21 @@ auto Database::hkeys(const std::string_view key) -> std::string {
     return emptyArray;
 }
 
+auto Database::hlen(const std::string_view key) -> std::string {
+    std::string size{'0'};
+
+    {
+        const std::shared_lock sharedLock{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::hash) size = std::to_string(entry->getHash().size());
+            else return wrongType;
+        }
+    }
+
+    return integer + size;
+}
+
 auto Database::crement(const std::string_view key, const long digital, const bool plus) -> std::string {
     std::string size;
 
