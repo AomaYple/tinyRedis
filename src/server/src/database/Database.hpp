@@ -69,6 +69,8 @@ public:
 
     [[nodiscard]] auto hget(std::string_view statement) -> std::string;
 
+    [[nodiscard]] auto hgetAll(std::string_view key) -> std::string;
+
 private:
     unsigned long index;
     Skiplist skiplist;
