@@ -85,6 +85,8 @@ public:
 
     [[nodiscard]] auto lindex(std::string_view statement) -> std::string;
 
+    [[nodiscard]] auto llen(std::string_view key) -> std::string;
+
 private:
     [[nodiscard]] auto crement(std::string_view key, long digital, bool isPlus) -> std::string;
 

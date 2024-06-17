@@ -216,7 +216,7 @@ auto Database::getRange(std::string_view statement) -> std::string {
 }
 
 auto Database::getBit(const std::string_view statement) -> std::string {
-    std::string bit{'0'};
+    auto bit{'0'};
 
     {
         const unsigned long space{statement.find(' ')};
@@ -237,7 +237,7 @@ auto Database::getBit(const std::string_view statement) -> std::string {
 }
 
 auto Database::setBit(std::string_view statement) -> std::string {
-    std::string bit{'0'};
+    auto bit{'0'};
 
     {
         unsigned long space{statement.find(' ')};
@@ -740,6 +740,21 @@ auto Database::lindex(const std::string_view statement) -> std::string {
     }
 
     return '"' + value + '"';
+}
+
+auto Database::llen(const std::string_view key) -> std::string {
+    std::string length{'0'};
+
+    {
+        const std::shared_lock sharedLock{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::list) length = std::to_string(entry->getList().size());
+            else return wrongType;
+        }
+    }
+
+    return integer + length;
 }
 
 auto Database::crement(const std::string_view key, const long digital, const bool isPlus) -> std::string {
