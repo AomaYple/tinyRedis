@@ -698,9 +698,9 @@ auto Database::hvals(const std::string_view key) -> std::string {
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash) {
-                unsigned long count{1};
+                unsigned long index{1};
                 for (const auto &value : entry->getHash() | std::views::values) {
-                    result += std::to_string(count++) + ") ";
+                    result += std::to_string(index++) + ") ";
                     result += '"' + value + '"' + '\n';
                 }
             } else return wrongType;
