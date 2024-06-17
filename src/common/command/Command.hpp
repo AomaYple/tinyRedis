@@ -12,6 +12,7 @@ enum class Command : unsigned char {
     get,
     getRange,
     getBit,
+    setBit,
     mget,
     setnx,
     setRange,
