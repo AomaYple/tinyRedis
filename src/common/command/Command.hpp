@@ -34,5 +34,6 @@ enum class Command : unsigned char {
     hset,
     hvals,
     lindex,
-    llen
+    llen,
+    lpop
 };
