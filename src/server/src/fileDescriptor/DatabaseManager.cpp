@@ -169,6 +169,16 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
 
                 break;
             }
+        case Command::getBit:
+            {
+                {
+                    const std::shared_lock sharedLock{this->lock};
+
+                    response = this->databases.at(index).getBit(statement);
+
+                    break;
+                }
+            }
         case Command::mget:
             {
                 const std::shared_lock sharedLock{this->lock};

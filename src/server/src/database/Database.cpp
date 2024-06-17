@@ -215,6 +215,27 @@ auto Database::getRange(std::string_view statement) -> std::string {
     return result;
 }
 
+auto Database::getBit(const std::string_view statement) -> std::string {
+    std::string bit{'0'};
+
+    {
+        const unsigned long space{statement.find(' ')};
+        const auto key{statement.substr(0, space)};
+        const auto offset{std::stoul(std::string{statement.substr(space + 1)})};
+
+        const std::shared_lock sharedLock{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::string) {
+                if (const unsigned long index{offset / 8}; index < entry->getString().size())
+                    bit = entry->getString()[index] >> offset % 8 & 1 ? '1' : '0';
+            } else return wrongType;
+        }
+    }
+
+    return integer + bit;
+}
+
 auto Database::mget(const std::string_view keys) -> std::string {
     std::string result;
 
