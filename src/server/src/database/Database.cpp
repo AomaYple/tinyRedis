@@ -656,6 +656,32 @@ auto Database::hvals(const std::string_view key) -> std::string {
     return emptyArray;
 }
 
+auto Database::lindex(const std::string_view statement) -> std::string {
+    std::string value;
+
+    {
+        const unsigned long space{statement.find(' ')};
+        const auto key{statement.substr(0, space)};
+        auto index{std::stol(std::string{statement.substr(space + 1)})};
+
+        const std::shared_lock sharedLock{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::list) {
+                const std::deque<std::string> &list{entry->getList()};
+                const auto listSize{static_cast<decltype(index)>(list.size())};
+
+                index = index < 0 ? listSize + index : index;
+                if (index >= listSize || index < 0) return nil;
+
+                value = list[index];
+            } else return wrongType;
+        } else return nil;
+    }
+
+    return '"' + value + '"';
+}
+
 auto Database::crement(const std::string_view key, const long digital, const bool isPlus) -> std::string {
     std::string size;
 

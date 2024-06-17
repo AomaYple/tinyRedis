@@ -341,6 +341,14 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
 
                 break;
             }
+        case Command::lindex:
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).lindex(statement);
+
+                break;
+            }
     }
     if (isRecord) this->record(requestCopy);
     const auto bytes{std::as_bytes(std::span{response})};

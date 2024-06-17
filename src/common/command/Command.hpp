@@ -30,5 +30,6 @@ enum class Command : unsigned char {
     hkeys,
     hlen,
     hset,
-    hvals
+    hvals,
+    lindex
 };
