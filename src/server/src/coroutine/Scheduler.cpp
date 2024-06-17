@@ -74,7 +74,7 @@ auto Scheduler::run() -> void {
     this->submit(std::make_shared<Task>(this->timing()));
 
     while (switcher.test(std::memory_order::relaxed)) {
-        if (this->logger->writable()) this->submit(std::make_shared<Task>(this->writeLog()));
+        if (this->logger->isWritable()) this->submit(std::make_shared<Task>(this->writeLog()));
 
         this->ring->wait(1);
         this->frame();

@@ -21,7 +21,7 @@ Logger::Logger(const int fileDescriptor) : FileDescriptor{fileDescriptor} {}
 
 auto Logger::push(Log &&log) -> void { this->logs.push(std::move(log)); }
 
-auto Logger::writable() const noexcept -> bool { return !this->logs.empty() && this->data.empty(); }
+auto Logger::isWritable() const noexcept -> bool { return !this->logs.empty() && this->data.empty(); }
 
 auto Logger::write() -> Awaiter {
     while (!this->logs.empty()) {

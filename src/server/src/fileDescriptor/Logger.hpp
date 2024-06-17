@@ -24,7 +24,7 @@ public:
 
     auto push(Log &&log) -> void;
 
-    [[nodiscard]] auto writable() const noexcept -> bool;
+    [[nodiscard]] auto isWritable() const noexcept -> bool;
 
     [[nodiscard]] auto write() -> Awaiter;
 
