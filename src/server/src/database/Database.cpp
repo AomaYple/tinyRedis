@@ -774,6 +774,29 @@ auto Database::lpop(const std::string_view key) -> std::string {
     return nil;
 }
 
+auto Database::lpush(std::string_view statement) -> std::string {
+    std::string size;
+
+    {
+        const unsigned long space{statement.find(' ')};
+        const auto key{statement.substr(0, space)};
+        statement.remove_prefix(space + 1);
+
+        const std::lock_guard lockGuard{this->lock};
+
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() != Entry::Type::list) return wrongType;
+        } else this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::deque<std::string>{}));
+
+        std::deque<std::string> &list{this->skiplist.find(key)->getList()};
+        for (const auto &view : statement | std::views::split(' ')) list.emplace_front(std::string_view{view});
+
+        size = std::to_string(list.size());
+    }
+
+    return integer + size;
+}
+
 auto Database::crement(const std::string_view key, const long digital, const bool isPlus) -> std::string {
     std::string size;
 
