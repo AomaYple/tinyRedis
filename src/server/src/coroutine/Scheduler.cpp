@@ -138,8 +138,8 @@ auto Scheduler::timing(const std::source_location sourceLocation) -> Task {
         };
     }
 
-    if (this->main && databaseManager.writable())
-        this->submit(std::make_shared<Task>(databaseManager.truncatable() ? this->truncate() : this->writeData()));
+    if (this->main && databaseManager.isWritable())
+        this->submit(std::make_shared<Task>(databaseManager.isTruncatable() ? this->truncate() : this->writeData()));
 
     this->eraseCurrentTask();
 }

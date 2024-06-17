@@ -80,7 +80,7 @@ public:
     [[nodiscard]] auto hvals(std::string_view key) -> std::string;
 
 private:
-    [[nodiscard]] auto crement(std::string_view key, long digital, bool plus) -> std::string;
+    [[nodiscard]] auto crement(std::string_view key, long digital, bool isPlus) -> std::string;
 
     unsigned long index;
     Skiplist skiplist;

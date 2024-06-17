@@ -217,7 +217,7 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
     return {bytes.cbegin(), bytes.cend()};
 }
 
-auto DatabaseManager::writable() -> bool {
+auto DatabaseManager::isWritable() -> bool {
     ++this->seconds;
 
     if (const std::lock_guard lockGuard{this->lock}; this->writeBuffer.empty()) {
@@ -242,7 +242,7 @@ auto DatabaseManager::writable() -> bool {
     return false;
 }
 
-auto DatabaseManager::truncatable() const noexcept -> bool {
+auto DatabaseManager::isTruncatable() const noexcept -> bool {
     return this->seconds == std::chrono::seconds::zero() && !this->writeBuffer.empty();
 }
 

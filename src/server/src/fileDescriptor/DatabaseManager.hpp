@@ -13,9 +13,9 @@ public:
 
     auto query(std::span<const std::byte> request) -> std::vector<std::byte>;
 
-    [[nodiscard]] auto writable() -> bool;
+    [[nodiscard]] auto isWritable() -> bool;
 
-    [[nodiscard]] auto truncatable() const noexcept -> bool;
+    [[nodiscard]] auto isTruncatable() const noexcept -> bool;
 
     [[nodiscard]] auto truncate() const noexcept -> Awaiter;
 

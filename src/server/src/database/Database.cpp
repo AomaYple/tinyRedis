@@ -75,7 +75,7 @@ auto Database::exists(const std::string_view keys) -> std::string {
 
 auto Database::move(std::unordered_map<unsigned long, Database> &databases, const std::string_view statement)
     -> std::string {
-    bool success{};
+    bool isSuccess{};
 
     {
         const unsigned long space{statement.find(' ')};
@@ -92,12 +92,12 @@ auto Database::move(std::unordered_map<unsigned long, Database> &databases, cons
                 this->skiplist.erase(key);
                 target.skiplist.insert(std::move(entry));
 
-                success = true;
+                isSuccess = true;
             }
         }
     }
 
-    return integer + std::to_string(success);
+    return integer + std::to_string(isSuccess);
 }
 
 auto Database::rename(const std::string_view statement) -> std::string {
@@ -119,7 +119,7 @@ auto Database::rename(const std::string_view statement) -> std::string {
 }
 
 auto Database::renamenx(const std::string_view statement) -> std::string {
-    bool success{};
+    bool isSuccess{};
 
     {
         const unsigned long space{statement.find(' ')};
@@ -134,11 +134,11 @@ auto Database::renamenx(const std::string_view statement) -> std::string {
             entry->getKey() = newKey;
             this->skiplist.insert(std::move(entry));
 
-            success = true;
+            isSuccess = true;
         }
     }
 
-    return integer + std::to_string(success);
+    return integer + std::to_string(isSuccess);
 }
 
 auto Database::type(const std::string_view key) -> std::string {
@@ -241,7 +241,7 @@ auto Database::mget(const std::string_view keys) -> std::string {
 }
 
 auto Database::setnx(const std::string_view statement) -> std::string {
-    bool success{};
+    bool isSuccess{};
 
     {
         const unsigned long space{statement.find(' ')};
@@ -252,11 +252,11 @@ auto Database::setnx(const std::string_view statement) -> std::string {
         if (this->skiplist.find(key) == nullptr) {
             this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{statement.substr(space + 1)}));
 
-            success = true;
+            isSuccess = true;
         }
     }
 
-    return integer + std::to_string(success);
+    return integer + std::to_string(isSuccess);
 }
 
 auto Database::setRange(std::string_view statement) -> std::string {
@@ -656,7 +656,7 @@ auto Database::hvals(const std::string_view key) -> std::string {
     return emptyArray;
 }
 
-auto Database::crement(const std::string_view key, const long digital, const bool plus) -> std::string {
+auto Database::crement(const std::string_view key, const long digital, const bool isPlus) -> std::string {
     std::string size;
 
     {
@@ -666,7 +666,7 @@ auto Database::crement(const std::string_view key, const long digital, const boo
             if (std::string & entryValue{entry->getString()};
                 entry->getType() == Entry::Type::string && isInteger(entryValue)) {
                 entryValue = size =
-                    std::to_string(plus ? std::stol(entryValue) + digital : std::stol(entryValue) - digital);
+                    std::to_string(isPlus ? std::stol(entryValue) + digital : std::stol(entryValue) - digital);
             } else return wrongInteger;
         } else {
             size = std::to_string(digital);
