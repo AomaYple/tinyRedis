@@ -26,8 +26,6 @@ public:
 private:
     auto record(std::span<const std::byte> request) -> void;
 
-    [[nodiscard]] auto select(unsigned long index) -> std::string;
-
     [[nodiscard]] auto serialize() -> std::vector<std::byte>;
 
     std::unordered_map<unsigned long, Database> databases;

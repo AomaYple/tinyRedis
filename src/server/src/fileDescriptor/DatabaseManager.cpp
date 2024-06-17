@@ -77,141 +77,272 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
     const auto index{*reinterpret_cast<const unsigned long *>(request.data())};
     request = request.subspan(sizeof(index));
 
-    Database &database{this->databases.at(index)};
-
     const std::string_view statement{reinterpret_cast<const char *>(request.data()), request.size()};
+
     std::string response;
+    bool isRecord{};
     switch (command) {
         case Command::select:
-            response = this->select(index);
-            break;
-        case Command::del:
-            response = database.del(statement);
-            this->record(requestCopy);
+            {
+                const std::lock_guard lockGuard{this->lock};
 
-            break;
+                this->databases.try_emplace(index, Database{index, std::span<const std::byte>{}});
+                response = "OK";
+                isRecord = true;
+
+                break;
+            }
+        case Command::del:
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).del(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::exists:
-            response = database.exists(statement);
-            break;
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).exists(statement);
+
+                break;
+            }
         case Command::move:
             {
                 const std::shared_lock sharedLock{this->lock};
 
-                response = database.move(this->databases, statement);
+                response = this->databases.at(index).move(this->databases, statement);
+                isRecord = true;
+
+                break;
             }
-            this->record(requestCopy);
-
-            break;
         case Command::rename:
-            response = database.rename(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).rename(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::renamenx:
-            response = database.renamenx(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).renamenx(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::type:
-            response = database.type(statement);
-            break;
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).type(statement);
+
+                break;
+            }
         case Command::set:
-            response = database.set(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).set(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::get:
-            response = database.get(statement);
-            break;
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).get(statement);
+
+                break;
+            }
         case Command::getRange:
-            response = database.getRange(statement);
-            break;
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).getRange(statement);
+
+                break;
+            }
         case Command::mget:
-            response = database.mget(statement);
-            break;
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).mget(statement);
+
+                break;
+            }
         case Command::setnx:
-            response = database.setnx(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).setnx(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::setRange:
-            response = database.setRange(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).setRange(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::strlen:
-            response = database.strlen(statement);
-            break;
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).strlen(statement);
+
+                break;
+            }
         case Command::mset:
-            response = database.mset(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).mset(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::msetnx:
-            response = database.msetnx(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).msetnx(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::incr:
-            response = database.incr(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).incr(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::incrBy:
-            response = database.incrBy(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).incrBy(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::decr:
-            response = database.decr(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).decr(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::decrBy:
-            response = database.decrBy(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).decrBy(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::append:
-            response = database.append(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).append(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::hdel:
-            response = database.hdel(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).hdel(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::hexists:
-            response = database.hexists(statement);
-            break;
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).hexists(statement);
+
+                break;
+            }
         case Command::hget:
-            response = database.hget(statement);
-            break;
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).hget(statement);
+
+                break;
+            }
         case Command::hgetAll:
-            response = database.hgetAll(statement);
-            break;
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).hgetAll(statement);
+
+                break;
+            }
         case Command::hincrBy:
-            response = database.hincrBy(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).hincrBy(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::hkeys:
-            response = database.hkeys(statement);
-            break;
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).hkeys(statement);
+
+                break;
+            }
         case Command::hlen:
-            response = database.hlen(statement);
-            break;
+            {
+                const std::shared_lock sharedLock{this->lock};
+
+                response = this->databases.at(index).hlen(statement);
+
+                break;
+            }
         case Command::hset:
-            response = database.hset(statement);
-            this->record(requestCopy);
+            {
+                const std::shared_lock sharedLock{this->lock};
 
-            break;
+                response = this->databases.at(index).hset(statement);
+                isRecord = true;
+
+                break;
+            }
         case Command::hvals:
-            response = database.hvals(statement);
-            break;
-    }
+            {
+                const std::shared_lock sharedLock{this->lock};
 
+                response = this->databases.at(index).hvals(statement);
+
+                break;
+            }
+    }
+    if (isRecord) this->record(requestCopy);
     const auto bytes{std::as_bytes(std::span{response})};
 
     return {bytes.cbegin(), bytes.cend()};
@@ -275,14 +406,6 @@ auto DatabaseManager::record(const std::span<const std::byte> request) -> void {
     this->aofBuffer.insert(this->aofBuffer.cend(), request.cbegin(), request.cend());
 
     ++this->writeCount;
-}
-
-auto DatabaseManager::select(const unsigned long index) -> std::string {
-    const std::lock_guard lockGuard{this->lock};
-
-    this->databases.try_emplace(index, Database{index, std::span<const std::byte>{}});
-
-    return "OK";
 }
 
 auto DatabaseManager::serialize() -> std::vector<std::byte> {
