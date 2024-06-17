@@ -788,14 +788,23 @@ auto Database::lpush(std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        const std::shared_ptr entry{this->skiplist.find(key)};
+        bool isNew{};
+        if (entry != nullptr) {
             if (entry->getType() != Entry::Type::list) return wrongType;
-        } else this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::deque<std::string>{}));
+        } else isNew = true;
 
-        std::deque<std::string> &list{this->skiplist.find(key)->getList()};
-        for (const auto &view : statement | std::views::split(' ')) list.emplace_front(std::string_view{view});
+        std::deque<std::string> newList;
+        for (const auto &view : statement | std::views::split(' ')) {
+            if (!isNew) entry->getList().emplace_front(std::string_view{view});
+            else newList.emplace_front(std::string_view{view});
+        }
 
-        size = std::to_string(list.size());
+        if (!isNew) size = std::to_string(entry->getList().size());
+        else {
+            size = std::to_string(newList.size());
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::move(newList)));
+        }
     }
 
     return integer + size;
