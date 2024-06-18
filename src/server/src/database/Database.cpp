@@ -320,7 +320,7 @@ auto Database::setnx(const std::string_view statement) -> std::string {
 }
 
 auto Database::setRange(std::string_view statement) -> std::string {
-    std::string size;
+    unsigned long size;
 
     {
         unsigned long space{statement.find(' ')};
@@ -331,6 +331,10 @@ auto Database::setRange(std::string_view statement) -> std::string {
         const auto offset{std::stoul(std::string{statement.substr(0, space)})};
         const auto value{statement.substr(space + 1)};
 
+        const unsigned long end{offset + value.size()};
+        std::string newValue{std::string(offset, '\0') + std::string{value}};
+        size = newValue.size();
+
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
@@ -338,21 +342,16 @@ auto Database::setRange(std::string_view statement) -> std::string {
                 std::string &entryValue{entry->getString()};
                 const unsigned long oldEnd{entryValue.size()};
 
-                if (const unsigned long end{offset + value.size()}; end > oldEnd) entryValue.resize(end);
+                if (end > oldEnd) entryValue.resize(end);
                 if (offset > oldEnd) entryValue.replace(oldEnd, offset - oldEnd, offset - oldEnd, '\0');
 
                 entryValue.replace(offset, value.size(), value);
-                size = std::to_string(entryValue.size());
+                size = entryValue.size();
             } else return wrongType;
-        } else {
-            std::string newValue{std::string(offset, '\0') + std::string{value}};
-            size = std::to_string(newValue.size());
-
-            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::move(newValue)));
-        }
+        } else this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::move(newValue)));
     }
 
-    return integer + size;
+    return integer + std::to_string(size);
 }
 
 auto Database::strlen(const std::string_view key) -> std::string {
