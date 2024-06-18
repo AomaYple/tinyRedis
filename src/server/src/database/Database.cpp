@@ -237,7 +237,7 @@ auto Database::getBit(const std::string_view statement) -> std::string {
 }
 
 auto Database::setBit(std::string_view statement) -> std::string {
-    auto bit{'0'};
+    bool oldBit{};
 
     {
         unsigned long space{statement.find(' ')};
@@ -249,6 +249,9 @@ auto Database::setBit(std::string_view statement) -> std::string {
         const auto position{static_cast<unsigned char>(offset % 8)};
         const auto value{statement.substr(space + 1) == "1"};
 
+        std::string newValue(index + 1, 0);
+        if (char &element{newValue[index]}; value) element = static_cast<char>(element | 1 << position);
+
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
@@ -258,21 +261,15 @@ auto Database::setBit(std::string_view statement) -> std::string {
                 if (index >= entryValue.size()) entryValue.resize(index + 1);
 
                 char &element{entryValue[index]};
-                bit = element >> position & 1 ? '1' : '0';
+                oldBit = element >> position & 1;
 
                 if (value) element = static_cast<char>(element | 1 << position);
                 else element = static_cast<char>(element & ~(1 << position));
             } else return wrongType;
-        } else {
-            std::string newValue(index + 1, 0);
-
-            if (char &element{newValue[index]}; value) element = static_cast<char>(element | 1 << position);
-
-            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::move(newValue)));
-        }
+        } else this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::move(newValue)));
     }
 
-    return integer + bit;
+    return integer + std::to_string(oldBit);
 }
 
 auto Database::mget(const std::string_view statement) -> std::string {
