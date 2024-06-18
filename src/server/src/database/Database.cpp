@@ -692,26 +692,26 @@ auto Database::hset(std::string_view statement) -> std::string {
 }
 
 auto Database::hvals(const std::string_view key) -> std::string {
-    std::string result;
+    std::string values;
 
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash) {
-                unsigned long index{1};
+                unsigned long index{};
                 for (const auto &value : entry->getHash() | std::views::values) {
-                    result += std::to_string(index++) + ") ";
-                    result += '"' + value + '"' + '\n';
+                    values += std::to_string(++index) + ") ";
+                    values += '"' + value + '"' + '\n';
                 }
             } else return wrongType;
         }
     }
 
-    if (!result.empty()) {
-        result.pop_back();
+    if (!values.empty()) {
+        values.pop_back();
 
-        return result;
+        return values;
     }
 
     return emptyArray;
