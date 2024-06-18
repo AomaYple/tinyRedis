@@ -834,23 +834,26 @@ auto Database::lpushx(std::string_view statement) -> std::string {
 }
 
 auto Database::crement(const std::string_view key, const long digital, const bool isPlus) -> std::string {
-    std::string size;
+    long number;
 
     {
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            if (std::string & entryValue{entry->getString()};
-                entry->getType() == Entry::Type::string && isInteger(entryValue)) {
-                entryValue = size =
-                    std::to_string(isPlus ? std::stol(entryValue) + digital : std::stol(entryValue) - digital);
-            } else return wrongInteger;
-        } else {
-            size = std::to_string(digital);
+            if (entry->getType() == Entry::Type::string) {
+                if (std::string & value{entry->getString()}; isInteger(value)) {
+                    const auto digitalValue{std::stol(value)};
+                    number = isPlus ? digitalValue + digital : digitalValue - digital;
 
-            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{size}));
+                    value = std::to_string(number);
+                } else return wrongInteger;
+            } else return wrongType;
+        } else {
+            number = digital;
+
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{std::to_string(number)}));
         }
     }
 
-    return integer + size;
+    return integer + std::to_string(number);
 }
