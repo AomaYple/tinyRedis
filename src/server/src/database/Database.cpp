@@ -482,13 +482,19 @@ auto Database::hdel(std::string_view statement) -> std::string {
         const auto key{statement.substr(0, space)};
         statement.remove_prefix(space + 1);
 
+        std::queue<std::string_view> fileds;
+        for (const auto &view : statement | std::views::split(' ')) fileds.emplace(view);
+
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash) {
-                for (std::unordered_map<std::string, std::string> &hash{entry->getHash()};
-                     const auto &view : statement | std::views::split(' '))
-                    if (hash.erase(std::string{std::string_view{view}}) == 1) ++count;
+                std::unordered_map<std::string, std::string> &hash{entry->getHash()};
+
+                while (!fileds.empty()) {
+                    count += hash.erase(std::string{fileds.front()});
+                    fileds.pop();
+                }
             } else return wrongType;
         }
     }
