@@ -626,18 +626,18 @@ auto Database::hkeys(const std::string_view key) -> std::string {
 }
 
 auto Database::hlen(const std::string_view key) -> std::string {
-    std::string length{'0'};
+    unsigned long size{};
 
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            if (entry->getType() == Entry::Type::hash) length = std::to_string(entry->getHash().size());
+            if (entry->getType() == Entry::Type::hash) size = entry->getHash().size();
             else return wrongType;
         }
     }
 
-    return integer + length;
+    return integer + std::to_string(size);
 }
 
 auto Database::hset(std::string_view statement) -> std::string {
