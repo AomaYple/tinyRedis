@@ -91,6 +91,8 @@ public:
 
     [[nodiscard]] auto lpush(std::string_view statement) -> std::string;
 
+    [[nodiscard]] auto lpushx(std::string_view statement) -> std::string;
+
 private:
     [[nodiscard]] auto crement(std::string_view key, long digital, bool isPlus) -> std::string;
 

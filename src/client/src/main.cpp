@@ -138,6 +138,7 @@ auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std:
     else if (command == "LLEN") commandType = Command::llen;
     else if (command == "LPOP") commandType = Command::lpop;
     else if (command == "LPUSH") commandType = Command::lpush;
+    else if (command == "LPUSHX") commandType = Command::lpushx;
 
     std::vector buffer{std::byte{std::to_underlying(commandType)}};
 

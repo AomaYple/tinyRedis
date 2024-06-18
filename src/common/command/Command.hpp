@@ -36,5 +36,6 @@ enum class Command : unsigned char {
     lindex,
     llen,
     lpop,
-    lpush
+    lpush,
+    lpushx
 };
