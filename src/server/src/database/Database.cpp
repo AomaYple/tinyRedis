@@ -194,25 +194,27 @@ auto Database::getRange(std::string_view statement) -> std::string {
     auto start{std::stol(std::string{statement.substr(0, space)})},
         end{std::stol(std::string{statement.substr(space + 1)})};
 
-    std::string result{'"'};
+    std::string result;
 
-    const std::shared_lock sharedLock{this->lock};
+    {
+        const std::shared_lock sharedLock{this->lock};
 
-    if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-        const auto entryValueSize{static_cast<decltype(start)>(entry->getString().size())};
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            const auto entryValueSize{static_cast<decltype(start)>(entry->getString().size())};
 
-        start = start < 0 ? entryValueSize + start : start;
-        if (start < 0) start = 0;
+            start = start < 0 ? entryValueSize + start : start;
+            if (start < 0) start = 0;
 
-        end = end < 0 ? entryValueSize + end : end;
-        ++end;
-        if (end > entryValueSize) end = entryValueSize;
+            end = end < 0 ? entryValueSize + end : end;
+            ++end;
+            if (end > entryValueSize) end = entryValueSize;
 
-        if (start < entryValueSize && end > 0 && start < end) result += entry->getString().substr(start, end - start);
+            if (start < entryValueSize && end > 0 && start < end)
+                result = entry->getString().substr(start, end - start);
+        }
     }
-    result += '"';
 
-    return result;
+    return '"' + result + '"';
 }
 
 auto Database::getBit(const std::string_view statement) -> std::string {
