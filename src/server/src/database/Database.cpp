@@ -174,15 +174,18 @@ auto Database::set(const std::string_view statement) -> std::string {
 }
 
 auto Database::get(const std::string_view statement) -> std::string {
-    const std::shared_lock sharedLock{this->lock};
+    std::string value;
 
-    if (const std::shared_ptr entry{this->skiplist.find(statement)}; entry != nullptr) {
-        if (entry->getType() == Entry::Type::string) return '"' + entry->getString() + '"';
+    {
+        const std::shared_lock sharedLock{this->lock};
 
-        return wrongType;
+        if (const std::shared_ptr entry{this->skiplist.find(statement)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::string) value = entry->getString();
+            else return wrongType;
+        } else return nil;
     }
 
-    return nil;
+    return '"' + value + '"';
 }
 
 auto Database::getRange(std::string_view statement) -> std::string {
