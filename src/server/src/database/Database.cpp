@@ -744,18 +744,18 @@ auto Database::lindex(const std::string_view statement) -> std::string {
 }
 
 auto Database::llen(const std::string_view key) -> std::string {
-    std::string length{'0'};
+    unsigned long size{};
 
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            if (entry->getType() == Entry::Type::list) length = std::to_string(entry->getList().size());
+            if (entry->getType() == Entry::Type::list) size = entry->getList().size();
             else return wrongType;
         }
     }
 
-    return integer + length;
+    return integer + std::to_string(size);
 }
 
 auto Database::lpop(const std::string_view key) -> std::string {
