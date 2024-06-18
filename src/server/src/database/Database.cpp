@@ -559,7 +559,7 @@ auto Database::hgetAll(const std::string_view key) -> std::string {
 }
 
 auto Database::hincrBy(std::string_view statement) -> std::string {
-    std::string digital;
+    std::string value;
 
     {
         unsigned long space{statement.find(' ')};
@@ -567,36 +567,38 @@ auto Database::hincrBy(std::string_view statement) -> std::string {
         statement.remove_prefix(space + 1);
 
         space = statement.find(' ');
-        const auto field{statement.substr(0, space)};
+        std::string field{statement.substr(0, space)};
         const auto crement{std::stol(std::string{statement.substr(space + 1)})};
 
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            std::unordered_map<std::string, std::string> &hash{entry->getHash()};
+            if (entry->getType() == Entry::Type::hash) {
+                std::unordered_map<std::string, std::string> &hash{entry->getHash()};
 
-            if (const auto result{hash.find(std::string{field})}; result != hash.cend()) {
-                if (isInteger(result->second)) {
-                    result->second = std::to_string(std::stol(result->second) + crement);
+                if (const auto result{hash.find(field)}; result != hash.cend()) {
+                    if (isInteger(result->second)) {
+                        result->second = std::to_string(std::stol(result->second) + crement);
 
-                    digital = result->second;
-                } else return wrongInteger;
-            } else {
-                digital = std::to_string(crement);
-                hash.emplace(std::string{field}, digital);
-            }
+                        value = result->second;
+                    } else return wrongInteger;
+                } else {
+                    value = std::to_string(crement);
+                    hash.emplace(std::move(field), std::string{value});
+                }
+            } else return wrongType;
         } else {
-            digital = std::to_string(crement);
+            value = std::to_string(crement);
 
             this->skiplist.insert(std::make_shared<Entry>(
                 std::string{
                     key
             },
-                std::unordered_map{std::pair{std::string{field}, digital}}));
+                std::unordered_map{std::pair{std::move(field), std::string{value}}}));
         }
     }
 
-    return integer + digital;
+    return integer + value;
 }
 
 auto Database::hkeys(const std::string_view key) -> std::string {
