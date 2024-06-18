@@ -356,18 +356,18 @@ auto Database::setRange(std::string_view statement) -> std::string {
 }
 
 auto Database::strlen(const std::string_view key) -> std::string {
-    std::string size;
+    unsigned long size{};
 
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            if (entry->getType() == Entry::Type::string) size = std::to_string(entry->getString().size());
+            if (entry->getType() == Entry::Type::string) size = entry->getString().size();
             else return wrongType;
-        } else size = '0';
+        }
     }
 
-    return integer + size;
+    return integer + std::to_string(size);
 }
 
 auto Database::mset(std::string_view statement) -> std::string {
