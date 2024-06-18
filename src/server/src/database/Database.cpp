@@ -163,12 +163,14 @@ auto Database::type(const std::string_view statement) -> std::string {
 }
 
 auto Database::set(const std::string_view statement) -> std::string {
-    const unsigned long space{statement.find(' ')};
+    {
+        const unsigned long space{statement.find(' ')};
 
-    const std::lock_guard lockGuard{this->lock};
+        const std::lock_guard lockGuard{this->lock};
 
-    this->skiplist.insert(
-        std::make_shared<Entry>(std::string{statement.substr(0, space)}, std::string{statement.substr(space + 1)}));
+        this->skiplist.insert(
+            std::make_shared<Entry>(std::string{statement.substr(0, space)}, std::string{statement.substr(space + 1)}));
+    }
 
     return ok;
 }
