@@ -41,9 +41,9 @@ public:
 
     [[nodiscard]] auto getBit(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto setBit(std::string_view statement) -> std::string;
-
     [[nodiscard]] auto mget(std::string_view statement) -> std::string;
+
+    [[nodiscard]] auto setBit(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto setnx(std::string_view statement) -> std::string;
 

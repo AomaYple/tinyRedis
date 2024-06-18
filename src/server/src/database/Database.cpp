@@ -216,7 +216,7 @@ auto Database::getRange(std::string_view statement) -> std::string {
 }
 
 auto Database::getBit(const std::string_view statement) -> std::string {
-    auto bit{'0'};
+    bool bit{};
 
     {
         const unsigned long space{statement.find(' ')};
@@ -228,12 +228,39 @@ auto Database::getBit(const std::string_view statement) -> std::string {
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) {
                 if (const unsigned long index{offset / 8}; index < entry->getString().size())
-                    bit = entry->getString()[index] >> offset % 8 & 1 ? '1' : '0';
+                    bit = entry->getString()[index] >> offset % 8 & 1;
             } else return wrongType;
         }
     }
 
-    return integer + bit;
+    return integer + std::to_string(bit);
+}
+
+auto Database::mget(const std::string_view statement) -> std::string {
+    std::string result;
+
+    {
+        std::vector<std::string_view> keys;
+        for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
+        unsigned long count{};
+
+        const std::shared_lock sharedLock{this->lock};
+
+        for (const auto key : keys) {
+            result += std::to_string(++count) + ") ";
+
+            if (const std::shared_ptr entry{this->skiplist.find(key)};
+                entry != nullptr && entry->getType() == Entry::Type::string)
+                result += '"' + entry->getString() + '"';
+            else result += nil;
+
+            result += '\n';
+        }
+    }
+
+    result.pop_back();
+
+    return result;
 }
 
 auto Database::setBit(std::string_view statement) -> std::string {
@@ -270,33 +297,6 @@ auto Database::setBit(std::string_view statement) -> std::string {
     }
 
     return integer + std::to_string(oldBit);
-}
-
-auto Database::mget(const std::string_view statement) -> std::string {
-    std::string result;
-
-    {
-        std::vector<std::string_view> keys;
-        for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
-        unsigned long count{};
-
-        const std::shared_lock sharedLock{this->lock};
-
-        for (const auto key : keys) {
-            result += std::to_string(++count) + ") ";
-
-            if (const std::shared_ptr entry{this->skiplist.find(key)};
-                entry != nullptr && entry->getType() == Entry::Type::string)
-                result += '"' + entry->getString() + '"';
-            else result += nil;
-
-            result += '\n';
-        }
-    }
-
-    result.pop_back();
-
-    return result;
 }
 
 auto Database::setnx(const std::string_view statement) -> std::string {
