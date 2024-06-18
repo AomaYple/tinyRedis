@@ -648,20 +648,10 @@ auto Database::hset(std::string_view statement) -> std::string {
         const auto key{statement.substr(0, space)};
         statement.remove_prefix(space + 1);
 
-        std::unordered_map<std::string, std::string> newHash;
-        auto isNew{true};
-
-        const std::lock_guard lockGuard{this->lock};
-
-        const std::shared_ptr entry{this->skiplist.find(key)};
-        if (entry != nullptr) {
-            if (entry->getType() == Entry::Type::hash) isNew = false;
-            else return wrongType;
-        }
-
+        std::queue<std::pair<std::string_view, std::string_view>> filedValues;
         while (!statement.empty()) {
             space = statement.find(' ');
-            std::string field{statement.substr(0, space)};
+            const auto field{statement.substr(0, space)};
             statement.remove_prefix(space + 1);
 
             space = statement.find(' ');
@@ -674,12 +664,29 @@ auto Database::hset(std::string_view statement) -> std::string {
                 statement = {};
             }
 
+            filedValues.emplace(field, value);
+        }
+
+        auto isNew{};
+        std::unordered_map<std::string, std::string> newHash;
+
+        const std::lock_guard lockGuard{this->lock};
+
+        const std::shared_ptr entry{this->skiplist.find(key)};
+        if (entry != nullptr) {
+            if (entry->getType() != Entry::Type::hash) return wrongType;
+        } else isNew = true;
+
+        while (!filedValues.empty()) {
+            std::string filed{filedValues.front().first}, value{filedValues.front().second};
+            filedValues.pop();
+
             if (!isNew) {
                 std::unordered_map<std::string, std::string> &hash{entry->getHash()};
 
-                if (!hash.contains(field)) ++count;
-                hash[std::move(field)] = std::string{value};
-            } else newHash.emplace(std::move(field), std::string{value});
+                if (!hash.contains(filed)) ++count;
+                hash[std::move(filed)] = std::move(value);
+            } else newHash.emplace(std::move(filed), std::move(value));
         }
 
         if (isNew) {
