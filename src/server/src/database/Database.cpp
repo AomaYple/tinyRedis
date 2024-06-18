@@ -780,35 +780,41 @@ auto Database::lpop(const std::string_view key) -> std::string {
 }
 
 auto Database::lpush(std::string_view statement) -> std::string {
-    std::string size;
+    unsigned long size;
 
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
         statement.remove_prefix(space + 1);
 
+        std::queue<std::string_view> elements;
+        for (const auto &view : statement | std::views::split(' ')) elements.emplace(view);
+
+        bool isNew{};
+        std::deque<std::string> newList;
+
         const std::lock_guard lockGuard{this->lock};
 
         const std::shared_ptr entry{this->skiplist.find(key)};
-        bool isNew{};
         if (entry != nullptr) {
             if (entry->getType() != Entry::Type::list) return wrongType;
         } else isNew = true;
 
-        std::deque<std::string> newList;
-        for (const auto &view : statement | std::views::split(' ')) {
-            if (!isNew) entry->getList().emplace_front(std::string_view{view});
-            else newList.emplace_front(std::string_view{view});
+        while (!elements.empty()) {
+            if (!isNew) entry->getList().emplace_front(elements.front());
+            else newList.emplace_front(elements.front());
+
+            elements.pop();
         }
 
-        if (!isNew) size = std::to_string(entry->getList().size());
+        if (!isNew) size = entry->getList().size();
         else {
-            size = std::to_string(newList.size());
+            size = newList.size();
             this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::move(newList)));
         }
     }
 
-    return integer + size;
+    return integer + std::to_string(size);
 }
 
 auto Database::lpushx(std::string_view statement) -> std::string {
