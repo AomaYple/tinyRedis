@@ -819,17 +819,17 @@ auto Database::lpushx(std::string_view statement) -> std::string {
         const auto key{statement.substr(0, space)};
         statement.remove_prefix(space + 1);
 
-        std::queue<std::string_view> values;
-        for (const auto &view : statement | std::views::split(' ')) values.emplace(view);
+        std::queue<std::string_view> elements;
+        for (const auto &view : statement | std::views::split(' ')) elements.emplace(view);
 
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::list) {
                 std::deque<std::string> &list{entry->getList()};
-                while (!values.empty()) {
-                    list.emplace_front(values.front());
-                    values.pop();
+                while (!elements.empty()) {
+                    list.emplace_front(elements.front());
+                    elements.pop();
                 }
 
                 size = list.size();
