@@ -497,6 +497,8 @@ auto Database::hdel(std::string_view statement) -> std::string {
 }
 
 auto Database::hexists(const std::string_view statement) -> std::string {
+    bool isExist{};
+
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)}, field{statement.substr(space + 1)};
@@ -505,12 +507,12 @@ auto Database::hexists(const std::string_view statement) -> std::string {
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash) {
-                if (entry->getHash().contains(std::string{field})) return integer + '1';
+                if (entry->getHash().contains(std::string{field})) isExist = true;
             } else return wrongType;
         }
     }
 
-    return integer + '0';
+    return integer + std::to_string(isExist);
 }
 
 auto Database::hget(const std::string_view statement) -> std::string {
