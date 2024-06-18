@@ -514,21 +514,24 @@ auto Database::hexists(const std::string_view statement) -> std::string {
 }
 
 auto Database::hget(const std::string_view statement) -> std::string {
-    const unsigned long space{statement.find(' ')};
-    const auto key{statement.substr(0, space)}, field{statement.substr(space + 1)};
+    std::string value;
 
-    const std::shared_lock sharedLock{this->lock};
+    {
+        const unsigned long space{statement.find(' ')};
+        const auto key{statement.substr(0, space)}, field{statement.substr(space + 1)};
 
-    if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-        if (entry->getType() == Entry::Type::hash) {
-            const std::unordered_map<std::string, std::string> &hash{entry->getHash()};
+        const std::shared_lock sharedLock{this->lock};
 
-            if (const auto result{hash.find(std::string{field})}; result != hash.cend())
-                return '"' + result->second + '"';
-        } else return wrongType;
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::hash) {
+                const std::unordered_map<std::string, std::string> &hash{entry->getHash()};
+
+                if (const auto result{hash.find(std::string{field})}; result != hash.cend()) value = result->second;
+            } else return wrongType;
+        } else return nil;
     }
 
-    return nil;
+    return '"' + value + '"';
 }
 
 auto Database::hgetAll(const std::string_view key) -> std::string {
