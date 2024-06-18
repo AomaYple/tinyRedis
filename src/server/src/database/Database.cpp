@@ -718,7 +718,7 @@ auto Database::hvals(const std::string_view key) -> std::string {
 }
 
 auto Database::lindex(const std::string_view statement) -> std::string {
-    std::string value;
+    std::string element;
 
     {
         const unsigned long space{statement.find(' ')};
@@ -735,12 +735,12 @@ auto Database::lindex(const std::string_view statement) -> std::string {
                 index = index < 0 ? listSize + index : index;
                 if (index >= listSize || index < 0) return nil;
 
-                value = list[index];
+                element = list[index];
             } else return wrongType;
         } else return nil;
     }
 
-    return '"' + value + '"';
+    return '"' + element + '"';
 }
 
 auto Database::llen(const std::string_view key) -> std::string {
