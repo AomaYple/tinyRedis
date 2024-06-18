@@ -371,24 +371,30 @@ auto Database::strlen(const std::string_view key) -> std::string {
 }
 
 auto Database::mset(std::string_view statement) -> std::string {
-    const std::lock_guard lockGuard{this->lock};
-
-    while (!statement.empty()) {
-        unsigned long space{statement.find(' ')};
-        const auto key{statement.substr(0, space)};
-        statement.remove_prefix(space + 1);
-
-        space = statement.find(' ');
-        std::string_view value;
-        if (space != std::string_view::npos) {
-            value = statement.substr(0, space);
+    {
+        std::vector<std::pair<std::string_view, std::string_view>> keyValues;
+        while (!statement.empty()) {
+            unsigned long space{statement.find(' ')};
+            const auto key{statement.substr(0, space)};
             statement.remove_prefix(space + 1);
-        } else {
-            value = statement;
-            statement = {};
+
+            space = statement.find(' ');
+            std::string_view value;
+            if (space != std::string_view::npos) {
+                value = statement.substr(0, space);
+                statement.remove_prefix(space + 1);
+            } else {
+                value = statement;
+                statement = {};
+            }
+
+            keyValues.emplace_back(key, value);
         }
 
-        this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
+        const std::lock_guard lockGuard{this->lock};
+
+        for (const auto &[key, value] : keyValues)
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
     }
 
     return ok;
