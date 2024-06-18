@@ -279,14 +279,16 @@ auto Database::mget(const std::string_view statement) -> std::string {
     std::string result;
 
     {
-        unsigned long count{1};
+        std::vector<std::string_view> keys;
+        for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
+        unsigned long count{};
 
         const std::shared_lock sharedLock{this->lock};
 
-        for (const auto &view : statement | std::views::split(' ')) {
-            result += std::to_string(count++) + ") ";
+        for (const auto key : keys) {
+            result += std::to_string(++count) + ") ";
 
-            if (const std::shared_ptr entry{this->skiplist.find(std::string_view{view})};
+            if (const std::shared_ptr entry{this->skiplist.find(key)};
                 entry != nullptr && entry->getType() == Entry::Type::string)
                 result += '"' + entry->getString() + '"';
             else result += nil;
