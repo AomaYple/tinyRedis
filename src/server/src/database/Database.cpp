@@ -811,7 +811,7 @@ auto Database::lpush(std::string_view statement) -> std::string {
 }
 
 auto Database::lpushx(std::string_view statement) -> std::string {
-    std::string size{'0'};
+    unsigned long size{};
 
     {
         const unsigned long space{statement.find(' ')};
@@ -825,12 +825,12 @@ auto Database::lpushx(std::string_view statement) -> std::string {
                 std::deque<std::string> &list{entry->getList()};
                 for (const auto &view : statement | std::views::split(' ')) list.emplace_front(std::string_view{view});
 
-                size = std::to_string(list.size());
+                size = list.size();
             } else return wrongType;
         }
     }
 
-    return integer + size;
+    return integer + std::to_string(size);
 }
 
 auto Database::crement(const std::string_view key, const long digital, const bool isPlus) -> std::string {
