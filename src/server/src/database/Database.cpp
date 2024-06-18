@@ -453,25 +453,28 @@ auto Database::decrBy(const std::string_view statement) -> std::string {
 }
 
 auto Database::append(const std::string_view statement) -> std::string {
-    const unsigned long space{statement.find(' ')};
-    const auto key{statement.substr(0, space)}, value{statement.substr(space + 1)};
+    unsigned long size;
 
-    const std::lock_guard lockGuard{this->lock};
+    {
+        const unsigned long space{statement.find(' ')};
+        const auto key{statement.substr(0, space)}, value{statement.substr(space + 1)};
 
-    if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-        if (entry->getType() == Entry::Type::string) {
-            std::string &entryValue{entry->getString()};
-            entryValue += value;
+        const std::lock_guard lockGuard{this->lock};
 
-            return std::to_string(entryValue.size());
+        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+            if (entry->getType() == Entry::Type::string) {
+                std::string &entryValue{entry->getString()};
+
+                entryValue += value;
+                size = entryValue.size();
+            } else return wrongType;
+        } else {
+            size = value.size();
+            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
         }
-
-        return wrongType;
     }
 
-    this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
-
-    return std::to_string(value.size());
+    return integer + std::to_string(size);
 }
 
 auto Database::hdel(std::string_view statement) -> std::string {
