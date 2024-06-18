@@ -538,12 +538,12 @@ auto Database::hgetAll(const std::string_view key) -> std::string {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-            unsigned long index{1};
+            unsigned long index{};
             for (const auto &[field, value] : entry->getHash()) {
-                result += std::to_string(index++) + ") ";
+                result += std::to_string(++index) + ") ";
                 result += '"' + field + '"' + '\n';
 
-                result += std::to_string(index++) + ") ";
+                result += std::to_string(++index) + ") ";
                 result += '"' + value + '"' + '\n';
             }
         }
