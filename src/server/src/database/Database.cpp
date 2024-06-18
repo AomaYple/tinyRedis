@@ -759,7 +759,7 @@ auto Database::llen(const std::string_view key) -> std::string {
 }
 
 auto Database::lpop(const std::string_view key) -> std::string {
-    std::string value;
+    std::string element;
 
     {
         const std::lock_guard lockGuard{this->lock};
@@ -767,14 +767,14 @@ auto Database::lpop(const std::string_view key) -> std::string {
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::list) {
                 if (std::deque<std::string> & list{entry->getList()}; !list.empty()) {
-                    value = std::move(list.front());
+                    element = std::move(list.front());
                     list.pop_front();
                 }
             } else return wrongType;
         }
     }
 
-    if (!value.empty()) return '"' + value + '"';
+    if (!element.empty()) return '"' + element + '"';
 
     return nil;
 }
