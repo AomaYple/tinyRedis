@@ -395,11 +395,9 @@ auto Database::mset(std::string_view statement) -> std::string {
 }
 
 auto Database::msetnx(std::string_view statement) -> std::string {
-    std::vector<std::pair<std::string_view, std::string_view>> entries;
+    std::vector<std::pair<std::string_view, std::string_view>> keyValues;
 
     {
-        const std::lock_guard lockGuard{this->lock};
-
         while (!statement.empty()) {
             unsigned long space{statement.find(' ')};
             const auto key{statement.substr(0, space)};
@@ -415,20 +413,24 @@ auto Database::msetnx(std::string_view statement) -> std::string {
                 statement = {};
             }
 
-            entries.emplace_back(key, value);
+            keyValues.emplace_back(key, value);
+        }
 
+        const std::lock_guard lockGuard{this->lock};
+
+        for (const auto key : keyValues | std::views::keys) {
             if (this->skiplist.find(key) != nullptr) {
-                entries.clear();
+                keyValues.clear();
 
                 break;
             }
         }
 
-        for (const auto &[key, value] : entries)
+        for (const auto &[key, value] : keyValues)
             this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{value}));
     }
 
-    return integer + std::to_string(entries.size());
+    return integer + std::to_string(keyValues.size());
 }
 
 auto Database::incr(const std::string_view key) -> std::string { return this->crement(key, 1, true); }
@@ -689,7 +691,7 @@ auto Database::hset(std::string_view statement) -> std::string {
             if (entry->getType() != Entry::Type::hash) return wrongType;
         } else isNew = true;
 
-        for (const auto [first, second] : filedValues) {
+        for (const auto &[first, second] : filedValues) {
             std::string filed{first}, value{second};
 
             if (!isNew) {
