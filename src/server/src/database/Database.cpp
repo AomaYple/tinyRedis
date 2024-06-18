@@ -600,26 +600,26 @@ auto Database::hincrBy(std::string_view statement) -> std::string {
 }
 
 auto Database::hkeys(const std::string_view key) -> std::string {
-    std::string result;
+    std::string fileds;
 
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash) {
-                unsigned long count{1};
+                unsigned long count{};
                 for (const auto &filed : entry->getHash() | std::views::keys) {
-                    result += std::to_string(count++) + ") ";
-                    result += '"' + filed + '"' + '\n';
+                    fileds += std::to_string(++count) + ") ";
+                    fileds += '"' + filed + '"' + '\n';
                 }
             } else return wrongType;
         }
     }
 
-    if (!result.empty()) {
-        result.pop_back();
+    if (!fileds.empty()) {
+        fileds.pop_back();
 
-        return result;
+        return fileds;
     }
 
     return emptyArray;
