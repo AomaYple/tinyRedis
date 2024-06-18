@@ -1,6 +1,7 @@
 #include "Database.hpp"
 
 #include <mutex>
+#include <queue>
 #include <ranges>
 
 static constexpr std::string ok{"OK"}, integer{"(integer) "}, nil{"(nil)"}, emptyArray{"(empty array)"};
@@ -818,12 +819,18 @@ auto Database::lpushx(std::string_view statement) -> std::string {
         const auto key{statement.substr(0, space)};
         statement.remove_prefix(space + 1);
 
+        std::queue<std::string_view> values;
+        for (const auto &view : statement | std::views::split(' ')) values.emplace(view);
+
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::list) {
                 std::deque<std::string> &list{entry->getList()};
-                for (const auto &view : statement | std::views::split(' ')) list.emplace_front(std::string_view{view});
+                while (!values.empty()) {
+                    list.emplace_front(values.front());
+                    values.pop();
+                }
 
                 size = list.size();
             } else return wrongType;
@@ -842,8 +849,7 @@ auto Database::crement(const std::string_view key, const long digital, const boo
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) {
                 if (std::string & value{entry->getString()}; isInteger(value)) {
-                    const auto digitalValue{std::stol(value)};
-                    number = isPlus ? digitalValue + digital : digitalValue - digital;
+                    number = isPlus ? std::stol(value) + digital : std::stol(value) - digital;
 
                     value = std::to_string(number);
                 } else return wrongInteger;
