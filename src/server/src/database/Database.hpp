@@ -20,9 +20,9 @@ public:
 
     [[nodiscard]] auto serialize() -> std::vector<std::byte>;
 
-    [[nodiscard]] auto del(std::string_view keys) -> std::string;
+    [[nodiscard]] auto del(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto exists(std::string_view keys) -> std::string;
+    [[nodiscard]] auto exists(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto move(std::unordered_map<unsigned long, Database> &databases, std::string_view statement)
         -> std::string;
@@ -31,11 +31,11 @@ public:
 
     [[nodiscard]] auto renamenx(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto type(std::string_view key) -> std::string;
+    [[nodiscard]] auto type(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto set(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto get(std::string_view key) -> std::string;
+    [[nodiscard]] auto get(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto getRange(std::string_view statement) -> std::string;
 
@@ -43,23 +43,23 @@ public:
 
     [[nodiscard]] auto setBit(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto mget(std::string_view keys) -> std::string;
+    [[nodiscard]] auto mget(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto setnx(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto setRange(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto strlen(std::string_view key) -> std::string;
+    [[nodiscard]] auto strlen(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto mset(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto msetnx(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto incr(std::string_view key) -> std::string;
+    [[nodiscard]] auto incr(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto incrBy(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto decr(std::string_view key) -> std::string;
+    [[nodiscard]] auto decr(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto decrBy(std::string_view statement) -> std::string;
 
@@ -71,23 +71,23 @@ public:
 
     [[nodiscard]] auto hget(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto hgetAll(std::string_view key) -> std::string;
+    [[nodiscard]] auto hgetAll(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto hincrBy(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto hkeys(std::string_view key) -> std::string;
+    [[nodiscard]] auto hkeys(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto hlen(std::string_view key) -> std::string;
+    [[nodiscard]] auto hlen(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto hset(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto hvals(std::string_view key) -> std::string;
+    [[nodiscard]] auto hvals(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto lindex(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto llen(std::string_view key) -> std::string;
+    [[nodiscard]] auto llen(std::string_view statement) -> std::string;
 
-    [[nodiscard]] auto lpop(std::string_view key) -> std::string;
+    [[nodiscard]] auto lpop(std::string_view statement) -> std::string;
 
     [[nodiscard]] auto lpush(std::string_view statement) -> std::string;
 
