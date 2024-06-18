@@ -1,7 +1,6 @@
 #include "Database.hpp"
 
 #include <mutex>
-#include <queue>
 #include <ranges>
 
 static constexpr std::string ok{"OK"}, integer{"(integer) "}, nil{"(nil)"}, emptyArray{"(empty array)"};
@@ -485,8 +484,8 @@ auto Database::hdel(std::string_view statement) -> std::string {
         const auto key{statement.substr(0, space)};
         statement.remove_prefix(space + 1);
 
-        std::queue<std::string_view> fileds;
-        for (const auto &view : statement | std::views::split(' ')) fileds.emplace(view);
+        std::vector<std::string_view> fileds;
+        for (const auto &view : statement | std::views::split(' ')) fileds.emplace_back(view);
 
         const std::lock_guard lockGuard{this->lock};
 
@@ -494,10 +493,7 @@ auto Database::hdel(std::string_view statement) -> std::string {
             if (entry->getType() == Entry::Type::hash) {
                 std::unordered_map<std::string, std::string> &hash{entry->getHash()};
 
-                while (!fileds.empty()) {
-                    count += hash.erase(std::string{fileds.front()});
-                    fileds.pop();
-                }
+                for (const auto filed : fileds) count += hash.erase(std::string{filed});
             } else return wrongType;
         }
     }
@@ -664,7 +660,7 @@ auto Database::hset(std::string_view statement) -> std::string {
         const auto key{statement.substr(0, space)};
         statement.remove_prefix(space + 1);
 
-        std::queue<std::pair<std::string_view, std::string_view>> filedValues;
+        std::vector<std::pair<std::string_view, std::string_view>> filedValues;
         while (!statement.empty()) {
             space = statement.find(' ');
             const auto field{statement.substr(0, space)};
@@ -680,7 +676,7 @@ auto Database::hset(std::string_view statement) -> std::string {
                 statement = {};
             }
 
-            filedValues.emplace(field, value);
+            filedValues.emplace_back(field, value);
         }
 
         bool isNew{};
@@ -693,9 +689,8 @@ auto Database::hset(std::string_view statement) -> std::string {
             if (entry->getType() != Entry::Type::hash) return wrongType;
         } else isNew = true;
 
-        while (!filedValues.empty()) {
-            std::string filed{filedValues.front().first}, value{filedValues.front().second};
-            filedValues.pop();
+        for (const auto [first, second] : filedValues) {
+            std::string filed{first}, value{second};
 
             if (!isNew) {
                 std::unordered_map<std::string, std::string> &hash{entry->getHash()};
@@ -810,8 +805,8 @@ auto Database::lpush(std::string_view statement) -> std::string {
         const auto key{statement.substr(0, space)};
         statement.remove_prefix(space + 1);
 
-        std::queue<std::string_view> elements;
-        for (const auto &view : statement | std::views::split(' ')) elements.emplace(view);
+        std::vector<std::string_view> elements;
+        for (const auto &view : statement | std::views::split(' ')) elements.emplace_back(view);
 
         bool isNew{};
         std::deque<std::string> newList;
@@ -823,11 +818,9 @@ auto Database::lpush(std::string_view statement) -> std::string {
             if (entry->getType() != Entry::Type::list) return wrongType;
         } else isNew = true;
 
-        while (!elements.empty()) {
-            if (!isNew) entry->getList().emplace_front(elements.front());
-            else newList.emplace_front(elements.front());
-
-            elements.pop();
+        for (const auto element : elements) {
+            if (!isNew) entry->getList().emplace_front(element);
+            else newList.emplace_front(element);
         }
 
         if (!isNew) size = entry->getList().size();
@@ -848,19 +841,16 @@ auto Database::lpushx(std::string_view statement) -> std::string {
         const auto key{statement.substr(0, space)};
         statement.remove_prefix(space + 1);
 
-        std::queue<std::string_view> elements;
-        for (const auto &view : statement | std::views::split(' ')) elements.emplace(view);
+        std::vector<std::string_view> elements;
+        for (const auto &view : statement | std::views::split(' ')) elements.emplace_back(view);
 
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::list) {
                 std::deque<std::string> &list{entry->getList()};
-                while (!elements.empty()) {
-                    list.emplace_front(elements.front());
-                    elements.pop();
-                }
 
+                for (const auto element : elements) list.emplace_front(element);
                 size = list.size();
             } else return wrongType;
         }
