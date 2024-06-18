@@ -667,7 +667,7 @@ auto Database::hset(std::string_view statement) -> std::string {
             filedValues.emplace(field, value);
         }
 
-        auto isNew{};
+        bool isNew{};
         std::unordered_map<std::string, std::string> newHash;
 
         const std::lock_guard lockGuard{this->lock};
