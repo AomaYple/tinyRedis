@@ -66,10 +66,13 @@ auto Database::exists(const std::string_view statement) -> std::string {
     unsigned long count{};
 
     {
+        std::vector<std::string_view> keys;
+        for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
+
         const std::shared_lock sharedLock{this->lock};
 
-        for (const auto &view : statement | std::views::split(' '))
-            if (this->skiplist.find(std::string_view{view}) != nullptr) ++count;
+        for (const auto key : keys)
+            if (this->skiplist.find(key) != nullptr) ++count;
     }
 
     return integer + std::to_string(count);
