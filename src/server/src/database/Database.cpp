@@ -261,7 +261,7 @@ auto Database::mget(const std::string_view statement) -> std::string {
             if (const std::shared_ptr entry{this->skiplist.find(key)};
                 entry != nullptr && entry->getType() == Entry::Type::string)
                 values.emplace_back(entry->getString());
-            else values.emplace_back(nil);
+            else values.emplace_back();
         }
     }
 
@@ -269,7 +269,9 @@ auto Database::mget(const std::string_view statement) -> std::string {
     unsigned long index{};
     for (const auto &value : values) {
         result += std::to_string(++index) + ") ";
-        result += '"' + value + '"' + '\n';
+
+        if (!value.empty()) result += '"' + value + '"' + '\n';
+        else result += nil + '\n';
     }
     result.pop_back();
 
