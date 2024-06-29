@@ -562,6 +562,7 @@ auto Database::hget(const std::string_view statement) -> std::string {
                 const std::unordered_map<std::string, std::string> &hash{entry->getHash()};
 
                 if (const auto result{hash.find(field)}; result != hash.cend()) value = result->second;
+                else return nil;
             } else return wrongType;
         } else return nil;
     }
