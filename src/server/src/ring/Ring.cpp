@@ -157,9 +157,9 @@ auto Ring::submit(const Submission &submission) -> void {
 
                 break;
             }
-        case Submission::Type::truncate:
-            io_uring_prep_ftruncate(sqe, submission.fileDescriptor,
-                                    std::get<Submission::Truncate>(submission.parameter).length);
+        case Submission::Type::cancel:
+            io_uring_prep_cancel_fd(sqe, submission.fileDescriptor,
+                                    std::get<Submission::Cancel>(submission.parameter).flags);
 
             break;
         case Submission::Type::close:
@@ -180,7 +180,7 @@ auto Ring::wait(const unsigned int count, const std::source_location sourceLocat
     }
 }
 
-auto Ring::poll(const std::function<auto(const Completion &completion)->void> &action) const -> int {
+auto Ring::poll(std::move_only_function<auto(const Completion &completion)->void> &&action) const -> int {
     int count{};
     unsigned int head;
 

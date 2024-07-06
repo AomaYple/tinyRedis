@@ -52,7 +52,7 @@ public:
 
     auto wait(unsigned int count, std::source_location sourceLocation = std::source_location::current()) -> void;
 
-    auto poll(const std::function<auto(const Completion &completion)->void> &action) const -> int;
+    [[nodiscard]] auto poll(std::move_only_function<auto(const Completion &completion)->void> &&action) const -> int;
 
     auto advance(io_uring_buf_ring *ringBuffer, int completionCount, int ringBufferCount) noexcept -> void;
 
