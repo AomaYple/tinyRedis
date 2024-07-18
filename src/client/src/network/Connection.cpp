@@ -3,7 +3,6 @@
 #include "../../../common/log/Exception.hpp"
 
 #include <arpa/inet.h>
-#include <cstring>
 #include <utility>
 
 Connection::Connection(const std::string_view host, const unsigned short port) :
@@ -37,7 +36,9 @@ Connection::~Connection() { this->close(); }
 auto Connection::send(const std::span<const std::byte> data, const std::source_location sourceLocation) const -> void {
     if (const long reuslt{::send(this->fileDescriptor, data.data(), data.size(), 0)}; reuslt <= 0) {
         throw Exception{
-            Log{Log::Level::fatal, reuslt == 0 ? "connection closed" : std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal,
+                reuslt == 0 ? "connection closed" : std::error_code{errno, std::generic_category()}.message(),
+                sourceLocation}
         };
     }
 }
@@ -59,7 +60,9 @@ auto Connection::receive(const std::source_location sourceLocation) const -> std
             }
 
             throw Exception{
-                Log{Log::Level::fatal, result == 0 ? "connection closed" : std::strerror(errno), sourceLocation}
+                Log{Log::Level::fatal,
+                    result == 0 ? "connection closed" : std::error_code{errno, std::generic_category()}.message(),
+                    sourceLocation}
             };
         }
     }
@@ -71,7 +74,7 @@ auto Connection::socket(const std::source_location sourceLocation) -> int {
     const int fileDescriptor{::socket(AF_INET, SOCK_STREAM, 0)};
     if (fileDescriptor == -1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 
@@ -82,7 +85,7 @@ auto Connection::translateIpAddress(const std::string_view host, in_addr &addres
                                     const std::source_location sourceLocation) -> void {
     if (inet_pton(AF_INET, host.data(), &address) != 1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 }
@@ -91,7 +94,7 @@ auto Connection::connect(const int fileDescriptor, const sockaddr_in &address,
                          const std::source_location sourceLocation) -> void {
     if (::connect(fileDescriptor, reinterpret_cast<const sockaddr *>(&address), sizeof(address)) != 0) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 }
@@ -99,7 +102,7 @@ auto Connection::connect(const int fileDescriptor, const sockaddr_in &address,
 auto Connection::close(const std::source_location sourceLocation) const -> void {
     if (this->fileDescriptor != -1 && ::close(this->fileDescriptor) != 0) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 }

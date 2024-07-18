@@ -2,7 +2,6 @@
 
 #include "../../../common/log/Exception.hpp"
 
-#include <cstring>
 #include <linux/io_uring.h>
 #include <sys/timerfd.h>
 
@@ -31,7 +30,7 @@ auto Timer::createTimerFileDescriptor(const std::source_location sourceLocation)
     const int fileDescriptor{timerfd_create(CLOCK_MONOTONIC, 0)};
     if (fileDescriptor == -1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 
@@ -45,7 +44,7 @@ auto Timer::setTime(const int fileDescriptor, const std::source_location sourceL
     };
     if (timerfd_settime(fileDescriptor, 0, &time, nullptr) == -1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 }

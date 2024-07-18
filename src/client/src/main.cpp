@@ -3,7 +3,6 @@
 #include "network/Connection.hpp"
 
 #include <csignal>
-#include <cstring>
 #include <iostream>
 #include <print>
 #include <utility>
@@ -82,13 +81,13 @@ auto shieldSignal(const std::source_location sourceLocation) -> void {
 
     if (sigaction(SIGTERM, &signalAction, nullptr) != 0) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 
     if (sigaction(SIGINT, &signalAction, nullptr) != 0) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 }

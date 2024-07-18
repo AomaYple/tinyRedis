@@ -3,7 +3,6 @@
 #include "../../../common/log/Exception.hpp"
 
 #include <arpa/inet.h>
-#include <cstring>
 #include <linux/io_uring.h>
 
 auto Server::create(const std::string_view host, const unsigned short port) -> int {
@@ -35,7 +34,7 @@ auto Server::socket(const std::source_location sourceLocation) -> int {
     const int fileDescriptor{::socket(AF_INET, SOCK_STREAM, 0)};
     if (fileDescriptor == -1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 
@@ -46,7 +45,7 @@ auto Server::setSocketOption(const int fileDescriptor, const std::source_locatio
     constexpr auto option{1};
     if (setsockopt(fileDescriptor, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &option, sizeof(option)) == -1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 }
@@ -55,7 +54,7 @@ auto Server::translateIpAddress(const std::string_view host, in_addr &address,
                                 const std::source_location sourceLocation) -> void {
     if (inet_pton(AF_INET, host.data(), &address) != 1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 }
@@ -64,7 +63,7 @@ auto Server::bind(const int fileDescriptor, const sockaddr_in &address, const st
     -> void {
     if (::bind(fileDescriptor, reinterpret_cast<const sockaddr *>(&address), sizeof(address)) == -1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 }
@@ -72,7 +71,7 @@ auto Server::bind(const int fileDescriptor, const sockaddr_in &address, const st
 auto Server::listen(const int fileDescriptor, const std::source_location sourceLocation) -> void {
     if (::listen(fileDescriptor, SOMAXCONN) == -1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 }

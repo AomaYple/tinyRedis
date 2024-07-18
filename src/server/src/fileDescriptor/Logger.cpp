@@ -2,7 +2,6 @@
 
 #include "../../../common/log/Exception.hpp"
 
-#include <cstring>
 #include <fcntl.h>
 #include <linux/io_uring.h>
 
@@ -10,7 +9,7 @@ auto Logger::create(const std::string_view filename, const std::source_location 
     const int fileDescriptor{open(filename.data(), O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR)};
     if (fileDescriptor == -1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 

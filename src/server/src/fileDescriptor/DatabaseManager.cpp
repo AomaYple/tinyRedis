@@ -3,7 +3,6 @@
 #include "../../../common/command/Command.hpp"
 #include "../../../common/log/Exception.hpp"
 
-#include <cstring>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
@@ -16,14 +15,14 @@ auto DatabaseManager::create(const std::source_location sourceLocation) -> int {
     const int fileDescriptor{open(filepath.data(), O_CREAT | O_WRONLY | O_APPEND | O_SYNC, S_IRUSR | S_IWUSR)};
     if (fileDescriptor == -1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
     if (std::filesystem::file_size(filepath) == 0) {
         constexpr unsigned long count{};
         if (::write(fileDescriptor, &count, sizeof(count)) == -1) {
             throw Exception{
-                Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+                Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
             };
         }
     }

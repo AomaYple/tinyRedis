@@ -4,14 +4,13 @@
 #include "Completion.hpp"
 #include "Submission.hpp"
 
-#include <cstring>
 #include <sys/resource.h>
 
 auto Ring::getFileDescriptorLimit(const std::source_location sourceLocation) -> unsigned long {
     rlimit limit{};
     if (getrlimit(RLIMIT_NOFILE, &limit) != 0) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 
@@ -23,7 +22,8 @@ Ring::Ring(const unsigned int entries, io_uring_params &params) :
         io_uring handle{};
         if (const int result{io_uring_queue_init_params(entries, &handle, &params)}; result != 0) {
             throw Exception{
-                Log{Log::Level::fatal, std::strerror(std::abs(result)), sourceLocation}
+                Log{Log::Level::fatal, std::error_code{std::abs(result), std::generic_category()}.message(),
+                    sourceLocation}
             };
         }
 
@@ -50,7 +50,8 @@ auto Ring::getFileDescriptor() const noexcept -> int { return this->handle.ring_
 auto Ring::registerSelfFileDescriptor(const std::source_location sourceLocation) -> void {
     if (const int result{io_uring_register_ring_fd(&this->handle)}; result != 1) {
         throw Exception{
-            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+            Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                sourceLocation}
         };
     }
 }
@@ -61,7 +62,8 @@ auto Ring::registerCpu(const unsigned int cpuCode, const std::source_location so
 
     if (const int result{io_uring_register_iowq_aff(&this->handle, sizeof(cpuSet), &cpuSet)}; result != 0) {
         throw Exception{
-            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+            Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                sourceLocation}
         };
     }
 }
@@ -69,7 +71,8 @@ auto Ring::registerCpu(const unsigned int cpuCode, const std::source_location so
 auto Ring::registerSparseFileDescriptor(const unsigned int count, const std::source_location sourceLocation) -> void {
     if (const int result{io_uring_register_files_sparse(&this->handle, count)}; result != 0) {
         throw Exception{
-            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+            Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                sourceLocation}
         };
     }
 }
@@ -78,7 +81,8 @@ auto Ring::allocateFileDescriptorRange(const unsigned int offset, const unsigned
                                        const std::source_location sourceLocation) -> void {
     if (const int result{io_uring_register_file_alloc_range(&this->handle, offset, length)}; result != 0) {
         throw Exception{
-            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+            Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                sourceLocation}
         };
     }
 }
@@ -89,7 +93,8 @@ auto Ring::updateFileDescriptors(const unsigned int offset, const std::span<cons
             io_uring_register_files_update(&this->handle, offset, fileDescriptors.data(), fileDescriptors.size())};
         result < 0) {
         throw Exception{
-            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+            Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                sourceLocation}
         };
     }
 }
@@ -100,7 +105,8 @@ auto Ring::setupRingBuffer(const unsigned int entries, const int id, const std::
     io_uring_buf_ring *const ringBufferHandle{io_uring_setup_buf_ring(&this->handle, entries, id, 0, &result)};
     if (ringBufferHandle == nullptr) {
         throw Exception{
-            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+            Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                sourceLocation}
         };
     }
 
@@ -111,7 +117,8 @@ auto Ring::freeRingBuffer(io_uring_buf_ring *const ringBufferHandle, const unsig
                           const std::source_location sourceLocation) -> void {
     if (const int result{io_uring_free_buf_ring(&this->handle, ringBufferHandle, entries, id)}; result < 0) {
         throw Exception{
-            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+            Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                sourceLocation}
         };
     }
 }
@@ -175,7 +182,8 @@ auto Ring::submit(const Submission &submission) -> void {
 auto Ring::wait(const unsigned int count, const std::source_location sourceLocation) -> void {
     if (const int result{io_uring_submit_and_wait(&this->handle, count)}; result < 0) {
         throw Exception{
-            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+            Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                sourceLocation}
         };
     }
 }

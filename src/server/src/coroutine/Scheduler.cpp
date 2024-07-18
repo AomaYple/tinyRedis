@@ -6,7 +6,6 @@
 #include "../ring/Completion.hpp"
 #include "../ring/Ring.hpp"
 
-#include <cstring>
 #include <ranges>
 
 auto Scheduler::registerSignal(const std::source_location sourceLocation) -> void {
@@ -16,13 +15,13 @@ auto Scheduler::registerSignal(const std::source_location sourceLocation) -> voi
 
     if (sigaction(SIGTERM, &signalAction, nullptr) == -1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 
     if (sigaction(SIGINT, &signalAction, nullptr) == -1) {
         throw Exception{
-            Log{Log::Level::fatal, std::strerror(errno), sourceLocation}
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 }
@@ -103,7 +102,8 @@ auto Scheduler::eraseCurrentTask() -> void { this->tasks.erase(this->currentUser
 auto Scheduler::writeLog(const std::source_location sourceLocation) -> Task {
     if (const auto [result, flags]{co_await this->logger->write()}; result < 0) {
         throw Exception{
-            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+            Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                sourceLocation}
         };
     }
     this->logger->wrote();
@@ -123,7 +123,8 @@ auto Scheduler::accept(const std::source_location sourceLocation) -> Task {
             this->eraseCurrentTask();
 
             throw Exception{
-                Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+                Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                    sourceLocation}
             };
         }
     }
@@ -134,7 +135,8 @@ auto Scheduler::timing(const std::source_location sourceLocation) -> Task {
         this->submit(std::make_shared<Task>(this->timing()));
     else {
         throw Exception{
-            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+            Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                sourceLocation}
         };
     }
 
@@ -161,7 +163,12 @@ auto Scheduler::receive(const Client &client, const std::source_location sourceL
             }
         } else {
             this->logger->push(Log{
-                Log::Level::warn, result == 0 ? "connection closed" : std::strerror(std::abs(result)), sourceLocation});
+                Log::Level::warn,
+                result == 0 ? "connection closed" :
+                              std::error_code{std::abs(result), std::generic_category()}
+                              .message(),
+                sourceLocation
+            });
 
             this->submit(std::make_shared<Task>(this->close(client.getFileDescriptor())));
 
@@ -176,8 +183,12 @@ auto Scheduler::send(const Client &client, std::vector<std::byte> &&data, const 
     -> Task {
     const std::vector response{std::move(data)};
     if (const auto [result, flags]{co_await client.send(response)}; result <= 0) {
-        this->logger->push(
-            Log{Log::Level::warn, result == 0 ? "connection closed" : std::strerror(std::abs(result)), sourceLocation});
+        this->logger->push(Log{
+            Log::Level::warn,
+            result == 0 ? "connection closed" : std::error_code{std::abs(result), std::generic_category()}
+                  .message(),
+            sourceLocation
+        });
 
         this->submit(std::make_shared<Task>(this->close(client.getFileDescriptor())));
     }
@@ -188,7 +199,8 @@ auto Scheduler::send(const Client &client, std::vector<std::byte> &&data, const 
 auto Scheduler::truncate(std::source_location sourceLocation) -> Task {
     if (const auto [result, flags]{co_await databaseManager.truncate()}; result != 0) {
         throw Exception{
-            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+            Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                sourceLocation}
         };
     }
     this->submit(std::make_shared<Task>(this->writeData()));
@@ -199,7 +211,8 @@ auto Scheduler::truncate(std::source_location sourceLocation) -> Task {
 auto Scheduler::writeData(std::source_location sourceLocation) -> Task {
     if (const auto [result, flags]{co_await databaseManager.write()}; result < 0) {
         throw Exception{
-            Log{Log::Level::error, std::strerror(std::abs(result)), sourceLocation}
+            Log{Log::Level::error, std::error_code{std::abs(result), std::generic_category()}.message(),
+                sourceLocation}
         };
     }
     databaseManager.wrote();
@@ -219,8 +232,13 @@ auto Scheduler::close(const int fileDescriptor, const std::source_location sourc
         this->clients.erase(fileDescriptor);
     }
 
-    if (outcome.result < 0)
-        this->logger->push(Log{Log::Level::warn, std::strerror(std::abs(outcome.result)), sourceLocation});
+    if (outcome.result < 0) {
+        this->logger->push(Log{
+            Log::Level::warn, std::error_code{std::abs(outcome.result), std::generic_category()}
+             .message(),
+            sourceLocation
+        });
+    }
 
     this->eraseCurrentTask();
 }
