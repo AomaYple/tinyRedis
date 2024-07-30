@@ -49,7 +49,7 @@ auto main() -> int {
         }
         if (input == "EXEC") {
             if (!transaction.empty()) {
-                for (unsigned long i{}; i < transaction.size(); ++i) {
+                for (unsigned long i{}; i != transaction.size(); ++i) {
                     connection.send(formatRequest(transaction[i], databaseIndex));
                     const std::vector data{connection.receive()};
 

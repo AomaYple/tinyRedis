@@ -31,7 +31,7 @@ auto DatabaseManager::create(const std::source_location sourceLocation) -> int {
 }
 
 DatabaseManager::DatabaseManager(const int fileDescriptor) : FileDescriptor{fileDescriptor} {
-    for (unsigned char i{}; i < 16; ++i) this->databases.emplace(i, Database{i, std::span<const std::byte>{}});
+    for (unsigned char i{}; i != 16; ++i) this->databases.emplace(i, Database{i, std::span<const std::byte>{}});
 
     if (std::ifstream file{filepath}; file.is_open()) {
         std::vector<std::byte> buffer{std::filesystem::file_size(filepath)};

@@ -55,7 +55,7 @@ auto Skiplist::find(const std::string_view key) const noexcept -> std::shared_pt
 
 auto Skiplist::insert(std::shared_ptr<Entry> &&entry) const -> void {
     Node *node{this->start};
-    for (unsigned char level{randomLevel()}; node != nullptr && level < node->level; --level) node = node->down;
+    for (unsigned char level{randomLevel()}; node != nullptr && level != node->level; --level) node = node->down;
 
     const std::string_view key{entry->getKey()};
     Node *previous{};
@@ -115,7 +115,7 @@ auto Skiplist::serialize() const -> std::vector<std::byte> {
 auto Skiplist::initlialize() -> Node * {
     Node *start{}, *previous{};
     const auto entry{std::make_shared<Entry>(std::string{}, std::string{})};
-    for (unsigned char i{maxLevel}; i > 0; --i) {
+    for (unsigned char i{maxLevel}; i != 0; --i) {
         const auto node{
             new Node{static_cast<decltype(i)>(i - 1), entry}
         };
