@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Skiplist.hpp"
+#include "SkipList.hpp"
 
 #include <shared_mutex>
 
@@ -97,6 +97,6 @@ private:
     [[nodiscard]] auto crement(std::string_view key, long digital, bool isPlus) -> std::string;
 
     unsigned long index;
-    Skiplist skiplist;
+    SkipList skipList;
     std::shared_mutex lock;
 };

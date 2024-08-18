@@ -4,7 +4,7 @@
 
 #include <memory>
 
-class Skiplist {
+class SkipList {
     struct Node {
         unsigned char level;
         std::shared_ptr<Entry> entry;
@@ -12,19 +12,19 @@ class Skiplist {
     };
 
 public:
-    Skiplist() = default;
+    SkipList() = default;
 
-    explicit Skiplist(std::span<const std::byte> serialization);
+    explicit SkipList(std::span<const std::byte> serialization);
 
-    Skiplist(const Skiplist &);
+    SkipList(const SkipList &);
 
-    Skiplist(Skiplist &&) noexcept;
+    SkipList(SkipList &&) noexcept;
 
-    auto operator=(const Skiplist &) -> Skiplist &;
+    auto operator=(const SkipList &) -> SkipList &;
 
-    auto operator=(Skiplist &&) noexcept -> Skiplist &;
+    auto operator=(SkipList &&) noexcept -> SkipList &;
 
-    ~Skiplist();
+    ~SkipList();
 
     [[nodiscard]] auto find(std::string_view key) const noexcept -> std::shared_ptr<Entry>;
 
@@ -35,7 +35,7 @@ public:
     [[nodiscard]] auto serialize() const -> std::vector<std::byte>;
 
 private:
-    [[nodiscard]] static auto initlialize() -> Node *;
+    [[nodiscard]] static auto initialize() -> Node *;
 
     [[nodiscard]] static auto random() -> double;
 
@@ -47,5 +47,5 @@ private:
 
     static constexpr unsigned char maxLevel{32};
 
-    Node *start{initlialize()};
+    Node *start{initialize()};
 };

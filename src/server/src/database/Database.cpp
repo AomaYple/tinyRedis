@@ -7,7 +7,7 @@ static constexpr std::string ok{"OK"}, integer{"(integer) "}, nil{"(nil)"}, empt
 static const std::string wrongType{"(error) WRONGTYPE Operation against a key holding the wrong kind of value"},
     wrongInteger{"(error) ERR value is not an integer or out of range"};
 
-constexpr auto isInteger(const std::string &integer) {
+[[nodiscard]] constexpr auto isInteger(const std::string &integer) {
     try {
         std::stol(integer);
     } catch (const std::invalid_argument &) { return false; }
@@ -15,13 +15,13 @@ constexpr auto isInteger(const std::string &integer) {
     return true;
 }
 
-Database::Database(const unsigned long index, const std::span<const std::byte> data) : index{index}, skiplist{data} {}
+Database::Database(const unsigned long index, const std::span<const std::byte> data) : index{index}, skipList{data} {}
 
 Database::Database(Database &&other) noexcept {
     const std::lock_guard lockGuard{other.lock};
 
     this->index = other.index;
-    this->skiplist = std::move(other.skiplist);
+    this->skipList = std::move(other.skipList);
 }
 
 auto Database::operator=(Database &&other) noexcept -> Database & {
@@ -30,7 +30,7 @@ auto Database::operator=(Database &&other) noexcept -> Database & {
     if (this == &other) return *this;
 
     this->index = other.index;
-    this->skiplist = std::move(other.skiplist);
+    this->skipList = std::move(other.skipList);
 
     return *this;
 }
@@ -41,7 +41,7 @@ auto Database::serialize() -> std::vector<std::byte> {
 
     const std::shared_lock sharedLock{this->lock};
 
-    const std::vector serialization{this->skiplist.serialize()};
+    const std::vector serialization{this->skipList.serialize()};
     data.insert(data.cend(), serialization.cbegin(), serialization.cend());
 
     return data;
@@ -56,7 +56,7 @@ auto Database::del(const std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        for (const auto key : keys) count += this->skiplist.erase(key);
+        for (const auto key : keys) count += this->skipList.erase(key);
     }
 
     return integer + std::to_string(count);
@@ -72,7 +72,7 @@ auto Database::exists(const std::string_view statement) -> std::string {
         const std::shared_lock sharedLock{this->lock};
 
         for (const auto key : keys)
-            if (this->skiplist.find(key) != nullptr) ++count;
+            if (this->skipList.find(key) != nullptr) ++count;
     }
 
     return integer + std::to_string(count);
@@ -92,10 +92,10 @@ auto Database::move(std::unordered_map<unsigned long, Database> &databases, cons
 
             const std::scoped_lock scopedLock{this->lock, target.lock};
 
-            if (std::shared_ptr entry{this->skiplist.find(key)};
-                entry != nullptr && target.skiplist.find(key) == nullptr) {
-                this->skiplist.erase(key);
-                target.skiplist.insert(std::move(entry));
+            if (std::shared_ptr entry{this->skipList.find(key)};
+                entry != nullptr && target.skipList.find(key) == nullptr) {
+                this->skipList.erase(key);
+                target.skipList.insert(std::move(entry));
 
                 isSuccess = true;
             }
@@ -111,11 +111,11 @@ auto Database::rename(const std::string_view statement) -> std::string {
 
     const std::lock_guard lockGuard{this->lock};
 
-    if (std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
-        this->skiplist.erase(key);
+    if (std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
+        this->skipList.erase(key);
 
         entry->getKey() = newKey;
-        this->skiplist.insert(std::move(entry));
+        this->skipList.insert(std::move(entry));
 
         return ok;
     }
@@ -132,12 +132,12 @@ auto Database::renamenx(const std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        if (std::shared_ptr entry{this->skiplist.find(key)};
-            entry != nullptr && this->skiplist.find(newKey) == nullptr) {
-            this->skiplist.erase(key);
+        if (std::shared_ptr entry{this->skipList.find(key)};
+            entry != nullptr && this->skipList.find(newKey) == nullptr) {
+            this->skipList.erase(key);
 
             entry->getKey() = newKey;
-            this->skiplist.insert(std::move(entry));
+            this->skipList.insert(std::move(entry));
 
             isSuccess = true;
         }
@@ -149,7 +149,7 @@ auto Database::renamenx(const std::string_view statement) -> std::string {
 auto Database::type(const std::string_view statement) -> std::string {
     const std::shared_lock sharedLock{this->lock};
 
-    if (const std::shared_ptr entry{this->skiplist.find(statement)}; entry != nullptr) {
+    if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
         switch (entry->getType()) {
             case Entry::Type::string:
                 return "string";
@@ -174,7 +174,7 @@ auto Database::set(const std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        this->skiplist.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
+        this->skipList.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
     }
 
     return ok;
@@ -186,7 +186,7 @@ auto Database::get(const std::string_view statement) -> std::string {
     {
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(statement)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) value = entry->getString();
             else return wrongType;
         } else return nil;
@@ -209,7 +209,7 @@ auto Database::getRange(std::string_view statement) -> std::string {
     {
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             const auto entryValueSize{static_cast<decltype(start)>(entry->getString().size())};
 
             start = start < 0 ? entryValueSize + start : start;
@@ -237,7 +237,7 @@ auto Database::getBit(const std::string_view statement) -> std::string {
 
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) {
                 if (const unsigned long index{offset / 8}; index < entry->getString().size())
                     bit = entry->getString()[index] >> offset % 8 & 1;
@@ -258,7 +258,7 @@ auto Database::mget(const std::string_view statement) -> std::string {
         const std::shared_lock sharedLock{this->lock};
 
         for (const auto key : keys) {
-            if (const std::shared_ptr entry{this->skiplist.find(key)};
+            if (const std::shared_ptr entry{this->skipList.find(key)};
                 entry != nullptr && entry->getType() == Entry::Type::string)
                 values.emplace_back(entry->getString());
             else values.emplace_back();
@@ -293,7 +293,7 @@ auto Database::setBit(std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) {
                 std::string &entryValue{entry->getString()};
 
@@ -309,7 +309,7 @@ auto Database::setBit(std::string_view statement) -> std::string {
             std::string newValue(index + 1, 0);
             if (char &element{newValue[index]}; value) element = static_cast<char>(element | 1 << position);
 
-            this->skiplist.insert(std::make_shared<Entry>(std::move(key), std::move(newValue)));
+            this->skipList.insert(std::make_shared<Entry>(std::move(key), std::move(newValue)));
         }
     }
 
@@ -325,8 +325,8 @@ auto Database::setnx(const std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        if (this->skiplist.find(key) == nullptr) {
-            this->skiplist.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
+        if (this->skipList.find(key) == nullptr) {
+            this->skipList.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
 
             isSuccess = true;
         }
@@ -351,7 +351,7 @@ auto Database::setRange(std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) {
                 std::string &entryValue{entry->getString()};
                 const unsigned long oldEnd{entryValue.size()};
@@ -366,7 +366,7 @@ auto Database::setRange(std::string_view statement) -> std::string {
             std::string newValue{std::string(offset, '\0') + std::string{value}};
             size = newValue.size();
 
-            this->skiplist.insert(std::make_shared<Entry>(std::move(key), std::move(newValue)));
+            this->skipList.insert(std::make_shared<Entry>(std::move(key), std::move(newValue)));
         }
     }
 
@@ -379,7 +379,7 @@ auto Database::strlen(const std::string_view statement) -> std::string {
     {
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(statement)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) size = entry->getString().size();
             else return wrongType;
         }
@@ -412,7 +412,7 @@ auto Database::mset(std::string_view statement) -> std::string {
         const std::lock_guard lockGuard{this->lock};
 
         for (auto &[key, value] : keyValues)
-            this->skiplist.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
+            this->skipList.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
     }
 
     return ok;
@@ -443,7 +443,7 @@ auto Database::msetnx(std::string_view statement) -> std::string {
         const std::lock_guard lockGuard{this->lock};
 
         for (const std::string_view key : keyValues | std::views::keys) {
-            if (this->skiplist.find(key) != nullptr) {
+            if (this->skipList.find(key) != nullptr) {
                 keyValues.clear();
 
                 break;
@@ -451,7 +451,7 @@ auto Database::msetnx(std::string_view statement) -> std::string {
         }
 
         for (auto &[key, value] : keyValues)
-            this->skiplist.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
+            this->skipList.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
     }
 
     return integer + std::to_string(keyValues.size());
@@ -486,7 +486,7 @@ auto Database::append(const std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) {
                 std::string &entryValue{entry->getString()};
 
@@ -495,7 +495,7 @@ auto Database::append(const std::string_view statement) -> std::string {
             } else return wrongType;
         } else {
             size = value.size();
-            this->skiplist.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
+            this->skipList.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
         }
     }
 
@@ -515,7 +515,7 @@ auto Database::hdel(std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash) {
                 std::unordered_map<std::string, std::string> &hash{entry->getHash()};
 
@@ -537,7 +537,7 @@ auto Database::hexists(const std::string_view statement) -> std::string {
 
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash) {
                 if (entry->getHash().contains(field)) isExist = true;
             } else return wrongType;
@@ -557,7 +557,7 @@ auto Database::hget(const std::string_view statement) -> std::string {
 
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash) {
                 const std::unordered_map<std::string, std::string> &hash{entry->getHash()};
 
@@ -576,7 +576,7 @@ auto Database::hgetAll(const std::string_view statement) -> std::string {
     {
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(statement)}; entry != nullptr)
+        if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr)
             for (const auto &[field, value] : entry->getHash()) filedValues.emplace_back(field, value);
     }
 
@@ -612,7 +612,7 @@ auto Database::hincrBy(std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash) {
                 std::unordered_map<std::string, std::string> &hash{entry->getHash()};
 
@@ -630,7 +630,7 @@ auto Database::hincrBy(std::string_view statement) -> std::string {
         } else {
             value = std::to_string(crement);
 
-            this->skiplist.insert(std::make_shared<Entry>(
+            this->skipList.insert(std::make_shared<Entry>(
                 std::string{
                     key
             },
@@ -647,7 +647,7 @@ auto Database::hkeys(const std::string_view statement) -> std::string {
     {
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(statement)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash)
                 for (const std::string_view filed : entry->getHash() | std::views::keys) fileds.emplace_back(filed);
             else return wrongType;
@@ -675,7 +675,7 @@ auto Database::hlen(const std::string_view statement) -> std::string {
     {
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(statement)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash) size = entry->getHash().size();
             else return wrongType;
         }
@@ -716,7 +716,7 @@ auto Database::hset(std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        const std::shared_ptr entry{this->skiplist.find(key)};
+        const std::shared_ptr entry{this->skipList.find(key)};
         if (entry != nullptr) {
             if (entry->getType() != Entry::Type::hash) return wrongType;
         } else isNew = true;
@@ -734,7 +734,7 @@ auto Database::hset(std::string_view statement) -> std::string {
 
         if (isNew) {
             count = newHash.size();
-            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::move(newHash)));
+            this->skipList.insert(std::make_shared<Entry>(std::string{key}, std::move(newHash)));
         }
     }
 
@@ -747,7 +747,7 @@ auto Database::hvals(const std::string_view statement) -> std::string {
     {
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(statement)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash)
                 for (const std::string_view value : entry->getHash() | std::views::values) values.emplace_back(value);
             else return wrongType;
@@ -779,7 +779,7 @@ auto Database::lindex(const std::string_view statement) -> std::string {
 
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::list) {
                 const std::deque<std::string> &list{entry->getList()};
                 const auto listSize{static_cast<decltype(index)>(list.size())};
@@ -801,7 +801,7 @@ auto Database::llen(const std::string_view statement) -> std::string {
     {
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(statement)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::list) size = entry->getList().size();
             else return wrongType;
         }
@@ -816,7 +816,7 @@ auto Database::lpop(const std::string_view statement) -> std::string {
     {
         const std::lock_guard lockGuard{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(statement)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::list) {
                 if (std::deque<std::string> & list{entry->getList()}; !list.empty()) {
                     element = std::move(list.front());
@@ -847,7 +847,7 @@ auto Database::lpush(std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        const std::shared_ptr entry{this->skiplist.find(key)};
+        const std::shared_ptr entry{this->skipList.find(key)};
         if (entry != nullptr) {
             if (entry->getType() != Entry::Type::list) return wrongType;
         } else isNew = true;
@@ -860,7 +860,7 @@ auto Database::lpush(std::string_view statement) -> std::string {
         if (!isNew) size = entry->getList().size();
         else {
             size = newList.size();
-            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::move(newList)));
+            this->skipList.insert(std::make_shared<Entry>(std::string{key}, std::move(newList)));
         }
     }
 
@@ -880,7 +880,7 @@ auto Database::lpushx(std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::list) {
                 std::deque<std::string> &list{entry->getList()};
 
@@ -899,7 +899,7 @@ auto Database::crement(const std::string_view key, const long digital, const boo
     {
         const std::lock_guard lockGuard{this->lock};
 
-        if (const std::shared_ptr entry{this->skiplist.find(key)}; entry != nullptr) {
+        if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) {
                 if (std::string & value{entry->getString()}; isInteger(value)) {
                     number = isPlus ? std::stol(value) + digital : std::stol(value) - digital;
@@ -910,7 +910,7 @@ auto Database::crement(const std::string_view key, const long digital, const boo
         } else {
             number = digital;
 
-            this->skiplist.insert(std::make_shared<Entry>(std::string{key}, std::string{std::to_string(number)}));
+            this->skipList.insert(std::make_shared<Entry>(std::string{key}, std::string{std::to_string(number)}));
         }
     }
 

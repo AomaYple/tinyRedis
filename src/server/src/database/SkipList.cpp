@@ -1,9 +1,9 @@
-#include "Skiplist.hpp"
+#include "SkipList.hpp"
 
 #include <random>
 #include <utility>
 
-Skiplist::Skiplist(std::span<const std::byte> serialization) {
+SkipList::SkipList(std::span<const std::byte> serialization) {
     while (!serialization.empty()) {
         const auto size{*reinterpret_cast<const unsigned long *>(serialization.data())};
         serialization = serialization.subspan(sizeof(size));
@@ -13,11 +13,11 @@ Skiplist::Skiplist(std::span<const std::byte> serialization) {
     }
 }
 
-Skiplist::Skiplist(const Skiplist &other) : start{other.copy()} {}
+SkipList::SkipList(const SkipList &other) : start{other.copy()} {}
 
-Skiplist::Skiplist(Skiplist &&other) noexcept : start{std::exchange(other.start, nullptr)} {}
+SkipList::SkipList(SkipList &&other) noexcept : start{std::exchange(other.start, nullptr)} {}
 
-auto Skiplist::operator=(const Skiplist &other) -> Skiplist & {
+auto SkipList::operator=(const SkipList &other) -> SkipList & {
     if (this == &other) return *this;
 
     this->destroy();
@@ -27,7 +27,7 @@ auto Skiplist::operator=(const Skiplist &other) -> Skiplist & {
     return *this;
 }
 
-auto Skiplist::operator=(Skiplist &&other) noexcept -> Skiplist & {
+auto SkipList::operator=(SkipList &&other) noexcept -> SkipList & {
     if (this == &other) return *this;
 
     this->destroy();
@@ -37,9 +37,9 @@ auto Skiplist::operator=(Skiplist &&other) noexcept -> Skiplist & {
     return *this;
 }
 
-Skiplist::~Skiplist() { this->destroy(); }
+SkipList::~SkipList() { this->destroy(); }
 
-auto Skiplist::find(const std::string_view key) const noexcept -> std::shared_ptr<Entry> {
+auto SkipList::find(const std::string_view key) const noexcept -> std::shared_ptr<Entry> {
     Node *node{this->start};
     while (node != nullptr) {
         Node *const next{node->next}, *const down{node->down};
@@ -53,7 +53,7 @@ auto Skiplist::find(const std::string_view key) const noexcept -> std::shared_pt
     return nullptr;
 }
 
-auto Skiplist::insert(std::shared_ptr<Entry> &&entry) const -> void {
+auto SkipList::insert(std::shared_ptr<Entry> &&entry) const -> void {
     Node *node{this->start};
     for (unsigned char level{randomLevel()}; node != nullptr && level != node->level; --level) node = node->down;
 
@@ -74,7 +74,7 @@ auto Skiplist::insert(std::shared_ptr<Entry> &&entry) const -> void {
     }
 }
 
-auto Skiplist::erase(const std::string_view key) const noexcept -> bool {
+auto SkipList::erase(const std::string_view key) const noexcept -> bool {
     bool isSuccess{};
 
     Node *node{this->start};
@@ -96,7 +96,7 @@ auto Skiplist::erase(const std::string_view key) const noexcept -> bool {
     return isSuccess;
 }
 
-auto Skiplist::serialize() const -> std::vector<std::byte> {
+auto SkipList::serialize() const -> std::vector<std::byte> {
     const Node *node{this->start};
     while (node != nullptr && node->down != nullptr) node = node->down;
 
@@ -112,7 +112,7 @@ auto Skiplist::serialize() const -> std::vector<std::byte> {
     return serialization;
 }
 
-auto Skiplist::initlialize() -> Node * {
+auto SkipList::initialize() -> Node * {
     Node *start{}, *previous{};
     const auto entry{std::make_shared<Entry>(std::string{}, std::string{})};
     for (unsigned char i{maxLevel}; i != 0; --i) {
@@ -128,21 +128,21 @@ auto Skiplist::initlialize() -> Node * {
     return start;
 }
 
-auto Skiplist::random() -> double {
+auto SkipList::random() -> double {
     static std::mt19937 generator{std::random_device{}()};
     static std::uniform_real_distribution<> distribution{0, 1};
 
     return distribution(generator);
 }
 
-auto Skiplist::randomLevel() -> unsigned char {
+auto SkipList::randomLevel() -> unsigned char {
     unsigned char level{};
     while (random() < 0.5 && level < maxLevel) ++level;
 
     return level;
 }
 
-auto Skiplist::copy() const -> Node * {
+auto SkipList::copy() const -> Node * {
     const Node *node{this->start};
 
     Node *newStart{}, *newPrevious{};
@@ -174,7 +174,7 @@ auto Skiplist::copy() const -> Node * {
     return newStart;
 }
 
-auto Skiplist::destroy() noexcept -> void {
+auto SkipList::destroy() noexcept -> void {
     const Node *node{this->start};
     while (node != nullptr) {
         const Node *const down{node->down};
