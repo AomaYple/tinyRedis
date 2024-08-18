@@ -34,10 +34,10 @@ auto Connection::operator=(Connection &&other) noexcept -> Connection & {
 Connection::~Connection() { this->close(); }
 
 auto Connection::send(const std::span<const std::byte> data, const std::source_location sourceLocation) const -> void {
-    if (const long reuslt{::send(this->fileDescriptor, data.data(), data.size(), 0)}; reuslt <= 0) {
+    if (const long result{::send(this->fileDescriptor, data.data(), data.size(), 0)}; result <= 0) {
         throw Exception{
             Log{Log::Level::fatal,
-                reuslt == 0 ? "connection closed" : std::error_code{errno, std::generic_category()}.message(),
+                result == 0 ? "connection closed" : std::error_code{errno, std::generic_category()}.message(),
                 sourceLocation}
         };
     }
