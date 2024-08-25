@@ -1,7 +1,6 @@
 #include "Scheduler.hpp"
 
 #include "../../../common/log/Exception.hpp"
-#include "../database/Database.hpp"
 #include "../fileDescriptor/Client.hpp"
 #include "../ring/Completion.hpp"
 #include "../ring/Ring.hpp"
