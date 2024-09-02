@@ -14,7 +14,7 @@ public:
 
     Server(const Server &) = delete;
 
-    Server(Server &&) = default;
+    Server(Server &&) noexcept = default;
 
     auto operator=(const Server &) -> Server & = delete;
 
