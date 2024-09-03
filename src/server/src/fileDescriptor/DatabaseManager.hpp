@@ -5,11 +5,21 @@
 
 #include <source_location>
 
-class DatabaseManager : public FileDescriptor {
+class DatabaseManager final : public FileDescriptor {
 public:
     [[nodiscard]] static auto create(std::source_location sourceLocation = std::source_location::current()) -> int;
 
     explicit DatabaseManager(int fileDescriptor);
+
+    DatabaseManager(const DatabaseManager &) = delete;
+
+    DatabaseManager(DatabaseManager &&) noexcept = delete;
+
+    auto operator=(const DatabaseManager &) -> DatabaseManager & = delete;
+
+    auto operator=(DatabaseManager &&) noexcept -> DatabaseManager & = delete;
+
+    ~DatabaseManager() override = default;
 
     auto query(std::span<const std::byte> request) -> std::vector<std::byte>;
 

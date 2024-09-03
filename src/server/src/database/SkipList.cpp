@@ -1,5 +1,7 @@
 #include "SkipList.hpp"
 
+#include "Entry.hpp"
+
 #include <random>
 #include <utility>
 
@@ -128,16 +130,16 @@ auto SkipList::initialize() -> Node * {
     return start;
 }
 
-auto SkipList::random() -> double {
+auto SkipList::random() -> int {
     static std::mt19937 generator{std::random_device{}()};
-    static std::uniform_real_distribution<> distribution{0, 1};
+    static std::uniform_int_distribution distribution{0, 1};
 
     return distribution(generator);
 }
 
 auto SkipList::randomLevel() -> unsigned char {
     unsigned char level{};
-    while (random() < 0.5 && level < maxLevel) ++level;
+    while (random() == 0 && level < maxLevel) ++level;
 
     return level;
 }

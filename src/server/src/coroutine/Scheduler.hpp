@@ -16,11 +16,11 @@ public:
 
     Scheduler(const Scheduler &) = delete;
 
-    Scheduler(Scheduler &&) = delete;
+    Scheduler(Scheduler &&) noexcept = delete;
 
     auto operator=(const Scheduler &) -> Scheduler & = delete;
 
-    auto operator=(Scheduler &&) -> Scheduler & = delete;
+    auto operator=(Scheduler &&) noexcept -> Scheduler & = delete;
 
     ~Scheduler();
 

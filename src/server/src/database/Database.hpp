@@ -3,6 +3,7 @@
 #include "SkipList.hpp"
 
 #include <shared_mutex>
+#include <unordered_map>
 
 class Database {
 public:

@@ -1,8 +1,9 @@
 #pragma once
 
-#include "Entry.hpp"
-
 #include <memory>
+#include <vector>
+
+class Entry;
 
 class SkipList {
     struct Node {
@@ -37,7 +38,7 @@ public:
 private:
     [[nodiscard]] static auto initialize() -> Node *;
 
-    [[nodiscard]] static auto random() -> double;
+    [[nodiscard]] static auto random() -> int;
 
     [[nodiscard]] static auto randomLevel() -> unsigned char;
 

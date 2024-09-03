@@ -1,5 +1,7 @@
 #include "Database.hpp"
 
+#include "Entry.hpp"
+
 #include <mutex>
 #include <ranges>
 

@@ -2,7 +2,7 @@
 
 #include "FileDescriptor.hpp"
 
-class Client : public FileDescriptor {
+class Client final : public FileDescriptor {
 public:
     explicit Client(int fileDescriptor) noexcept;
 
@@ -12,9 +12,9 @@ public:
 
     auto operator=(const Client &) -> Client & = delete;
 
-    auto operator=(Client &&) -> Client & = delete;
+    auto operator=(Client &&) noexcept -> Client & = delete;
 
-    ~Client() = default;
+    ~Client() override = default;
 
     [[nodiscard]] auto receive(int ringBufferId) const noexcept -> Awaiter;
 

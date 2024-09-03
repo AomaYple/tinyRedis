@@ -4,7 +4,7 @@
 
 #include <source_location>
 
-class Timer : public FileDescriptor {
+class Timer final : public FileDescriptor {
 public:
     [[nodiscard]] static auto create() -> int;
 
@@ -16,9 +16,9 @@ public:
 
     auto operator=(const Timer &) -> Timer & = delete;
 
-    auto operator=(Timer &&) -> Timer & = delete;
+    auto operator=(Timer &&) noexcept-> Timer & = delete;
 
-    ~Timer() = default;
+    ~Timer() override = default;
 
     [[nodiscard]] auto timing() noexcept -> Awaiter;
 
