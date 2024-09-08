@@ -94,10 +94,10 @@ auto Database::move(std::unordered_map<unsigned long, Database> &databases, cons
 
             const std::scoped_lock scopedLock{this->lock, target.lock};
 
-            if (std::shared_ptr entry{this->skipList.find(key)};
+            if (const std::shared_ptr entry{this->skipList.find(key)};
                 entry != nullptr && target.skipList.find(key) == nullptr) {
                 this->skipList.erase(key);
-                target.skipList.insert(std::move(entry));
+                target.skipList.insert(entry);
 
                 isSuccess = true;
             }
@@ -113,11 +113,11 @@ auto Database::rename(const std::string_view statement) -> std::string {
 
     const std::lock_guard lockGuard{this->lock};
 
-    if (std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
+    if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
         this->skipList.erase(key);
 
         entry->getKey() = newKey;
-        this->skipList.insert(std::move(entry));
+        this->skipList.insert(entry);
 
         return ok;
     }
@@ -134,12 +134,12 @@ auto Database::renamenx(const std::string_view statement) -> std::string {
 
         const std::lock_guard lockGuard{this->lock};
 
-        if (std::shared_ptr entry{this->skipList.find(key)};
+        if (const std::shared_ptr entry{this->skipList.find(key)};
             entry != nullptr && this->skipList.find(newKey) == nullptr) {
             this->skipList.erase(key);
 
             entry->getKey() = newKey;
-            this->skipList.insert(std::move(entry));
+            this->skipList.insert(entry);
 
             isSuccess = true;
         }

@@ -15,16 +15,16 @@ SkipList::SkipList(std::span<const std::byte> serialization) {
     }
 }
 
-SkipList::SkipList(const SkipList &other) : start{other.copy()} {}
+SkipList::SkipList(const SkipList &other) : levels{other.copy()} {}
 
-SkipList::SkipList(SkipList &&other) noexcept : start{std::exchange(other.start, nullptr)} {}
+SkipList::SkipList(SkipList &&other) noexcept : levels{std::exchange(other.levels, {})} {}
 
 auto SkipList::operator=(const SkipList &other) -> SkipList & {
     if (this == &other) return *this;
 
     this->destroy();
 
-    this->start = other.copy();
+    this->levels = other.copy();
 
     return *this;
 }
@@ -34,7 +34,7 @@ auto SkipList::operator=(SkipList &&other) noexcept -> SkipList & {
 
     this->destroy();
 
-    this->start = std::exchange(other.start, nullptr);
+    this->levels = std::exchange(other.levels, {});
 
     return *this;
 }
@@ -42,7 +42,7 @@ auto SkipList::operator=(SkipList &&other) noexcept -> SkipList & {
 SkipList::~SkipList() { this->destroy(); }
 
 auto SkipList::find(const std::string_view key) const noexcept -> std::shared_ptr<Entry> {
-    Node *node{this->start};
+    Node *node{this->levels.back()};
     while (node != nullptr) {
         Node *const next{node->next}, *const down{node->down};
 
@@ -55,31 +55,24 @@ auto SkipList::find(const std::string_view key) const noexcept -> std::shared_pt
     return nullptr;
 }
 
-auto SkipList::insert(std::shared_ptr<Entry> &&entry) const -> void {
-    Node *node{this->start};
-    for (unsigned char level{randomLevel()}; node != nullptr && level != node->level; --level) node = node->down;
-
+auto SkipList::insert(const std::shared_ptr<Entry> &entry) const -> void {
     const std::string_view key{entry->getKey()};
     Node *previous{};
-    while (node != nullptr) {
+    for (Node *node{this->levels[this->randomLevel()]}; node != nullptr; node = node->down) {
         while (node->next != nullptr && key >= node->next->entry->getKey()) node = node->next;
 
-        if (key != node->entry->getKey()) node->next = new Node{node->level, entry, node->next};
+        if (key != node->entry->getKey()) node->next = new Node{entry, node->next};
         else node->entry = entry;
 
-        if (previous != nullptr) {
-            previous->down = node->next;
-            previous = previous->down;
-        } else previous = node->next;
-
-        node = node->down;
+        if (previous != nullptr) previous->down = node->next;
+        previous = node->next;
     }
 }
 
 auto SkipList::erase(const std::string_view key) const noexcept -> bool {
     bool isSuccess{};
 
-    Node *node{this->start};
+    Node *node{this->levels.back()};
     while (node != nullptr) {
         while (node->next != nullptr && key > node->next->entry->getKey()) node = node->next;
 
@@ -99,35 +92,63 @@ auto SkipList::erase(const std::string_view key) const noexcept -> bool {
 }
 
 auto SkipList::serialize() const -> std::vector<std::byte> {
-    const Node *node{this->start};
-    while (node != nullptr && node->down != nullptr) node = node->down;
-
     std::vector<std::byte> serialization{sizeof(unsigned long)};
-    while (node != nullptr) {
+    for (const Node *node{this->levels.front()->next}; node != nullptr; node = node->next) {
         const std::vector serializedEntry{node->entry->serialize()};
         serialization.insert(serialization.cend(), serializedEntry.cbegin(), serializedEntry.cend());
-
-        node = node->next;
     }
     *reinterpret_cast<unsigned long *>(serialization.data()) = serialization.size() - sizeof(unsigned long);
 
     return serialization;
 }
 
-auto SkipList::initialize() -> Node * {
-    Node *start{}, *previous{};
-    const auto entry{std::make_shared<Entry>(std::string{}, std::string{})};
-    for (unsigned char i{maxLevel}; i != 0; --i) {
-        const auto node{
-            new Node{static_cast<decltype(i)>(i - 1), entry}
-        };
-        if (previous != nullptr) {
-            previous->down = node;
-            previous = previous->down;
-        } else start = previous = node;
+auto SkipList::initialize() -> std::array<Node *, 32> {
+    std::array<Node *, 32> levels;
+
+    Node *previous{};
+    for (auto level{levels.rbegin()}; level != levels.crend(); ++level) {
+        *level = new Node{std::make_shared<Entry>(std::string{}, std::string{})};
+
+        if (previous != nullptr) previous->down = *level;
+        previous = *level;
     }
 
-    return start;
+    return levels;
+}
+
+auto SkipList::copy() const -> std::array<Node *, 32> {
+    std::array<Node *, 32> copies;
+
+    for (unsigned long i{}; i != this->levels.size(); ++i) {
+        Node *previous{};
+        for (const Node *node{this->levels[i]}; node != nullptr; node = node->next) {
+            const auto newNode{new Node{std::make_shared<Entry>(*node->entry)}};
+
+            if (previous != nullptr) previous->next = newNode;
+            else copies[i] = newNode;
+            previous = newNode;
+        }
+    }
+    for (auto up{copies.crbegin()}, down{up + 1}; down != copies.crend(); ++up, ++down) {
+        for (Node *upNode{*up}, *downNode{*down}; upNode != nullptr; downNode = downNode->next) {
+            if (upNode->entry->getKey() == downNode->entry->getKey()) {
+                upNode->down = downNode;
+                upNode = upNode->next;
+            }
+        }
+    }
+
+    return copies;
+}
+
+auto SkipList::destroy() const noexcept -> void {
+    for (const Node *level : this->levels) {
+        while (level != nullptr) {
+            const Node *const next{level->next};
+            delete level;
+            level = next;
+        }
+    }
 }
 
 auto SkipList::random() -> int {
@@ -137,56 +158,9 @@ auto SkipList::random() -> int {
     return distribution(generator);
 }
 
-auto SkipList::randomLevel() -> unsigned char {
+auto SkipList::randomLevel() const -> unsigned char {
     unsigned char level{};
-    while (random() == 0 && level < maxLevel) ++level;
+    while (random() == 0 && level != this->levels.size()) ++level;
 
     return level;
-}
-
-auto SkipList::copy() const -> Node * {
-    const Node *node{this->start};
-
-    Node *newStart{}, *newPrevious{};
-    while (node != nullptr) {
-        const Node *const down{node->down};
-
-        Node *subNewNode{}, *subNewPrevious{};
-        while (node != nullptr) {
-            const auto newNode{
-                new Node{node->level, std::make_shared<Entry>(*node->entry)}
-            };
-
-            if (subNewPrevious != nullptr) {
-                subNewPrevious->next = newNode;
-                subNewPrevious = subNewPrevious->next;
-            } else subNewNode = subNewPrevious = newNode;
-
-            node = node->next;
-        }
-
-        if (newPrevious != nullptr) {
-            newPrevious->down = subNewNode;
-            newPrevious = newPrevious->down;
-        } else newStart = newPrevious = subNewNode;
-
-        node = down;
-    }
-
-    return newStart;
-}
-
-auto SkipList::destroy() noexcept -> void {
-    const Node *node{this->start};
-    while (node != nullptr) {
-        const Node *const down{node->down};
-        while (node != nullptr) {
-            const Node *const next{node->next};
-            delete node;
-            node = next;
-        }
-        node = down;
-    }
-
-    this->start = nullptr;
 }
