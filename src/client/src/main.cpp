@@ -79,13 +79,13 @@ auto shieldSignal(const std::source_location sourceLocation) -> void {
 
     signalAction.sa_handler = SIG_IGN;
 
-    if (sigaction(SIGTERM, &signalAction, nullptr) != 0) {
+    if (sigaction(SIGTERM, &signalAction, nullptr) == -1) {
         throw Exception{
             Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
 
-    if (sigaction(SIGINT, &signalAction, nullptr) != 0) {
+    if (sigaction(SIGINT, &signalAction, nullptr) == -1) {
         throw Exception{
             Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
