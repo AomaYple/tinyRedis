@@ -92,7 +92,7 @@ auto Connection::translateIpAddress(const std::string_view host, in_addr &addres
 
 auto Connection::connect(const int fileDescriptor, const sockaddr_in &address,
                          const std::source_location sourceLocation) -> void {
-    if (::connect(fileDescriptor, reinterpret_cast<const sockaddr *>(&address), sizeof(address)) != 0) {
+    if (::connect(fileDescriptor, reinterpret_cast<const sockaddr *>(&address), sizeof(address)) == -1) {
         throw Exception{
             Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
@@ -100,7 +100,7 @@ auto Connection::connect(const int fileDescriptor, const sockaddr_in &address,
 }
 
 auto Connection::close(const std::source_location sourceLocation) const -> void {
-    if (this->fileDescriptor != -1 && ::close(this->fileDescriptor) != 0) {
+    if (this->fileDescriptor != -1 && ::close(this->fileDescriptor) == -1) {
         throw Exception{
             Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
