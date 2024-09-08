@@ -41,9 +41,12 @@ auto Database::serialize() -> std::vector<std::byte> {
     std::vector<std::byte> data{sizeof(this->index)};
     *reinterpret_cast<decltype(this->index) *>(data.data()) = this->index;
 
-    const std::shared_lock sharedLock{this->lock};
+    std::vector<std::byte> serialization;
+    {
+        const std::shared_lock sharedLock{this->lock};
 
-    const std::vector serialization{this->skipList.serialize()};
+        serialization = this->skipList.serialize();
+    }
     data.insert(data.cend(), serialization.cbegin(), serialization.cend());
 
     return data;
@@ -51,7 +54,6 @@ auto Database::serialize() -> std::vector<std::byte> {
 
 auto Database::del(const std::string_view statement) -> std::string {
     unsigned long count{};
-
     {
         std::vector<std::string_view> keys;
         for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
@@ -66,7 +68,6 @@ auto Database::del(const std::string_view statement) -> std::string {
 
 auto Database::exists(const std::string_view statement) -> std::string {
     unsigned long count{};
-
     {
         std::vector<std::string_view> keys;
         for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
@@ -83,7 +84,6 @@ auto Database::exists(const std::string_view statement) -> std::string {
 auto Database::move(std::unordered_map<unsigned long, Database> &databases, const std::string_view statement)
     -> std::string {
     bool isSuccess{};
-
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
@@ -116,7 +116,7 @@ auto Database::rename(const std::string_view statement) -> std::string {
     if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
         this->skipList.erase(key);
 
-        entry->getKey() = newKey;
+        entry->setKey(std::string{newKey});
         this->skipList.insert(entry);
 
         return ok;
@@ -127,7 +127,6 @@ auto Database::rename(const std::string_view statement) -> std::string {
 
 auto Database::renameNx(const std::string_view statement) -> std::string {
     bool isSuccess{};
-
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)}, newKey{statement.substr(space + 1)};
@@ -138,7 +137,7 @@ auto Database::renameNx(const std::string_view statement) -> std::string {
             entry != nullptr && this->skipList.find(newKey) == nullptr) {
             this->skipList.erase(key);
 
-            entry->getKey() = newKey;
+            entry->setKey(std::string{newKey});
             this->skipList.insert(entry);
 
             isSuccess = true;
@@ -172,11 +171,12 @@ auto Database::type(const std::string_view statement) -> std::string {
 auto Database::set(const std::string_view statement) -> std::string {
     {
         const unsigned long space{statement.find(' ')};
-        std::string key{statement.substr(0, space)}, value{statement.substr(space + 1)};
+        const auto entry{
+            std::make_shared<Entry>(std::string{statement.substr(0, space)}, std::string{statement.substr(space + 1)})};
 
         const std::lock_guard lockGuard{this->lock};
 
-        this->skipList.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
+        this->skipList.insert(entry);
     }
 
     return ok;
@@ -184,7 +184,6 @@ auto Database::set(const std::string_view statement) -> std::string {
 
 auto Database::get(const std::string_view statement) -> std::string {
     std::string value;
-
     {
         const std::shared_lock sharedLock{this->lock};
 
@@ -207,7 +206,6 @@ auto Database::getRange(std::string_view statement) -> std::string {
         end{std::stol(std::string{statement.substr(space + 1)})};
 
     std::string result;
-
     {
         const std::shared_lock sharedLock{this->lock};
 
@@ -231,7 +229,6 @@ auto Database::getRange(std::string_view statement) -> std::string {
 
 auto Database::getBit(const std::string_view statement) -> std::string {
     bool bit{};
-
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
@@ -252,7 +249,6 @@ auto Database::getBit(const std::string_view statement) -> std::string {
 
 auto Database::mGet(const std::string_view statement) -> std::string {
     std::vector<std::string> values;
-
     {
         std::vector<std::string_view> keys;
         for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
@@ -282,7 +278,6 @@ auto Database::mGet(const std::string_view statement) -> std::string {
 
 auto Database::setBit(std::string_view statement) -> std::string {
     bool oldBit{};
-
     {
         unsigned long space{statement.find(' ')};
         std::string key{statement.substr(0, space)};
@@ -320,7 +315,6 @@ auto Database::setBit(std::string_view statement) -> std::string {
 
 auto Database::setNx(const std::string_view statement) -> std::string {
     bool isSuccess{};
-
     {
         const unsigned long space{statement.find(' ')};
         std::string key{statement.substr(0, space)}, value{statement.substr(space + 1)};
@@ -365,7 +359,7 @@ auto Database::setRange(std::string_view statement) -> std::string {
                 size = entryValue.size();
             } else return wrongType;
         } else {
-            std::string newValue{std::string(offset, '\0') + std::string{value}};
+            std::string newValue{std::string(offset, 0) + std::string{value}};
             size = newValue.size();
 
             this->skipList.insert(std::make_shared<Entry>(std::move(key), std::move(newValue)));
@@ -377,7 +371,6 @@ auto Database::setRange(std::string_view statement) -> std::string {
 
 auto Database::strlen(const std::string_view statement) -> std::string {
     unsigned long size{};
-
     {
         const std::shared_lock sharedLock{this->lock};
 
@@ -392,7 +385,7 @@ auto Database::strlen(const std::string_view statement) -> std::string {
 
 auto Database::mSet(std::string_view statement) -> std::string {
     {
-        std::vector<std::pair<std::string, std::string>> keyValues;
+        std::vector<std::shared_ptr<Entry>> entries;
         while (!statement.empty()) {
             unsigned long space{statement.find(' ')};
             const auto key{statement.substr(0, space)};
@@ -408,21 +401,19 @@ auto Database::mSet(std::string_view statement) -> std::string {
                 statement = {};
             }
 
-            keyValues.emplace_back(key, value);
+            entries.emplace_back(std::make_shared<Entry>(std::string{key}, std::string{value}));
         }
 
         const std::lock_guard lockGuard{this->lock};
 
-        for (auto &[key, value] : keyValues)
-            this->skipList.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
+        for (const auto &entry : entries) this->skipList.insert(entry);
     }
 
     return ok;
 }
 
 auto Database::mSetNx(std::string_view statement) -> std::string {
-    std::vector<std::pair<std::string, std::string>> keyValues;
-
+    std::vector<std::shared_ptr<Entry>> entries;
     {
         while (!statement.empty()) {
             unsigned long space{statement.find(' ')};
@@ -439,24 +430,23 @@ auto Database::mSetNx(std::string_view statement) -> std::string {
                 statement = {};
             }
 
-            keyValues.emplace_back(key, value);
+            entries.emplace_back(std::make_shared<Entry>(std::string{key}, std::string{value}));
         }
 
         const std::lock_guard lockGuard{this->lock};
 
-        for (const std::string_view key : keyValues | std::views::keys) {
-            if (this->skipList.find(key) != nullptr) {
-                keyValues.clear();
+        for (const auto &entry : entries) {
+            if (this->skipList.find(entry->getKey()) != nullptr) {
+                entries.clear();
 
                 break;
             }
         }
 
-        for (auto &[key, value] : keyValues)
-            this->skipList.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
+        for (const auto &entry : entries) this->skipList.insert(entry);
     }
 
-    return integer + std::to_string(keyValues.size());
+    return integer + std::to_string(entries.size());
 }
 
 auto Database::incr(const std::string_view statement) -> std::string { return this->crement(statement, 1, true); }
@@ -481,7 +471,6 @@ auto Database::decrBy(const std::string_view statement) -> std::string {
 
 auto Database::append(const std::string_view statement) -> std::string {
     unsigned long size;
-
     {
         const unsigned long space{statement.find(' ')};
         std::string key{statement.substr(0, space)}, value{statement.substr(space + 1)};
@@ -506,7 +495,6 @@ auto Database::append(const std::string_view statement) -> std::string {
 
 auto Database::hDel(std::string_view statement) -> std::string {
     unsigned long count{};
-
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
@@ -531,7 +519,6 @@ auto Database::hDel(std::string_view statement) -> std::string {
 
 auto Database::hExists(const std::string_view statement) -> std::string {
     bool isExist{};
-
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
@@ -551,7 +538,6 @@ auto Database::hExists(const std::string_view statement) -> std::string {
 
 auto Database::hGet(const std::string_view statement) -> std::string {
     std::string value;
-
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
@@ -574,7 +560,6 @@ auto Database::hGet(const std::string_view statement) -> std::string {
 
 auto Database::hGetAll(const std::string_view statement) -> std::string {
     std::vector<std::pair<std::string, std::string>> fieldValues;
-
     {
         const std::shared_lock sharedLock{this->lock};
 
@@ -602,7 +587,6 @@ auto Database::hGetAll(const std::string_view statement) -> std::string {
 
 auto Database::hIncrBy(std::string_view statement) -> std::string {
     std::string value;
-
     {
         unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
@@ -645,7 +629,6 @@ auto Database::hIncrBy(std::string_view statement) -> std::string {
 
 auto Database::hKeys(const std::string_view statement) -> std::string {
     std::vector<std::string> fields;
-
     {
         const std::shared_lock sharedLock{this->lock};
 
@@ -673,7 +656,6 @@ auto Database::hKeys(const std::string_view statement) -> std::string {
 
 auto Database::hLen(const std::string_view statement) -> std::string {
     unsigned long size{};
-
     {
         const std::shared_lock sharedLock{this->lock};
 
@@ -688,7 +670,6 @@ auto Database::hLen(const std::string_view statement) -> std::string {
 
 auto Database::hSet(std::string_view statement) -> std::string {
     unsigned long count{};
-
     {
         unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
@@ -745,7 +726,6 @@ auto Database::hSet(std::string_view statement) -> std::string {
 
 auto Database::hVals(const std::string_view statement) -> std::string {
     std::vector<std::string> values;
-
     {
         const std::shared_lock sharedLock{this->lock};
 
@@ -773,7 +753,6 @@ auto Database::hVals(const std::string_view statement) -> std::string {
 
 auto Database::lIndex(const std::string_view statement) -> std::string {
     std::string element;
-
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
@@ -799,7 +778,6 @@ auto Database::lIndex(const std::string_view statement) -> std::string {
 
 auto Database::lLen(const std::string_view statement) -> std::string {
     unsigned long size{};
-
     {
         const std::shared_lock sharedLock{this->lock};
 
@@ -814,7 +792,6 @@ auto Database::lLen(const std::string_view statement) -> std::string {
 
 auto Database::lPop(const std::string_view statement) -> std::string {
     std::string element;
-
     {
         const std::lock_guard lockGuard{this->lock};
 
@@ -835,7 +812,6 @@ auto Database::lPop(const std::string_view statement) -> std::string {
 
 auto Database::lPush(std::string_view statement) -> std::string {
     unsigned long size;
-
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
@@ -871,7 +847,6 @@ auto Database::lPush(std::string_view statement) -> std::string {
 
 auto Database::lPushX(std::string_view statement) -> std::string {
     unsigned long size{};
-
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
@@ -897,7 +872,6 @@ auto Database::lPushX(std::string_view statement) -> std::string {
 
 auto Database::crement(const std::string_view key, const long digital, const bool isPlus) -> std::string {
     long number;
-
     {
         const std::lock_guard lockGuard{this->lock};
 

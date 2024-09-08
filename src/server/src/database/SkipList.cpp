@@ -61,11 +61,12 @@ auto SkipList::insert(const std::shared_ptr<Entry> &entry) const -> void {
     for (Node *node{this->levels[this->randomLevel()]}; node != nullptr; node = node->down) {
         while (node->next != nullptr && key >= node->next->entry->getKey()) node = node->next;
 
-        if (key != node->entry->getKey()) node->next = new Node{entry, node->next};
-        else node->entry = entry;
+        if (key != node->entry->getKey()) {
+            node->next = new Node{entry, node->next};
 
-        if (previous != nullptr) previous->down = node->next;
-        previous = node->next;
+            if (previous != nullptr) previous->down = node->next;
+            previous = node->next;
+        } else node->entry = entry;
     }
 }
 
