@@ -17,7 +17,7 @@ public:
         std::string key;
         double score;
 
-        [[nodiscard]] auto operator<(const SortedSetElement &) const noexcept -> bool;
+        [[nodiscard]] auto operator<=>(const SortedSetElement &) const noexcept -> std::strong_ordering;
     };
 
     explicit Entry(std::string &&key, std::string &&value = {}) noexcept;

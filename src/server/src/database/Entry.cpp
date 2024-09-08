@@ -4,13 +4,16 @@
 
 template<>
 struct std::hash<Entry::SortedSetElement> {
-    auto operator()(const Entry::SortedSetElement &other) const noexcept {
+    [[nodiscard]] constexpr auto operator()(const Entry::SortedSetElement &other) const noexcept {
         return hash<decltype(other.key)>{}(other.key);
     }
 };
 
-auto Entry::SortedSetElement::operator<(const SortedSetElement &other) const noexcept -> bool {
-    return this->score < other.score;
+auto Entry::SortedSetElement::operator<=>(const SortedSetElement &other) const noexcept -> std::strong_ordering {
+    if (this->score < other.score) return std::strong_ordering::less;
+    if (this->score > other.score) return std::strong_ordering::greater;
+
+    return std::strong_ordering::equal;
 }
 
 Entry::Entry(std::string &&key, std::string &&value) noexcept :
