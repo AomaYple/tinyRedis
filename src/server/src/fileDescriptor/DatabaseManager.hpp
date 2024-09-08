@@ -25,7 +25,7 @@ public:
 
     [[nodiscard]] auto isWritable() -> bool;
 
-    [[nodiscard]] auto isTruncatable() const noexcept -> bool;
+    [[nodiscard]] auto isCanTruncate() const noexcept -> bool;
 
     [[nodiscard]] auto truncate() const noexcept -> Awaiter;
 
