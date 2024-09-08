@@ -8,7 +8,7 @@
 
 auto Ring::getFileDescriptorLimit(const std::source_location sourceLocation) -> unsigned long {
     rlimit limit{};
-    if (getrlimit(RLIMIT_NOFILE, &limit) != 0) {
+    if (getrlimit(RLIMIT_NOFILE, &limit) == -1) {
         throw Exception{
             Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
