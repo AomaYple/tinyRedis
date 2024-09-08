@@ -125,7 +125,7 @@ auto Database::rename(const std::string_view statement) -> std::string {
     return "(error) ERR no such key";
 }
 
-auto Database::renamenx(const std::string_view statement) -> std::string {
+auto Database::renameNx(const std::string_view statement) -> std::string {
     bool isSuccess{};
 
     {
@@ -250,7 +250,7 @@ auto Database::getBit(const std::string_view statement) -> std::string {
     return integer + std::to_string(bit);
 }
 
-auto Database::mget(const std::string_view statement) -> std::string {
+auto Database::mGet(const std::string_view statement) -> std::string {
     std::vector<std::string> values;
 
     {
@@ -318,7 +318,7 @@ auto Database::setBit(std::string_view statement) -> std::string {
     return integer + std::to_string(oldBit);
 }
 
-auto Database::setnx(const std::string_view statement) -> std::string {
+auto Database::setNx(const std::string_view statement) -> std::string {
     bool isSuccess{};
 
     {
@@ -390,7 +390,7 @@ auto Database::strlen(const std::string_view statement) -> std::string {
     return integer + std::to_string(size);
 }
 
-auto Database::mset(std::string_view statement) -> std::string {
+auto Database::mSet(std::string_view statement) -> std::string {
     {
         std::vector<std::pair<std::string, std::string>> keyValues;
         while (!statement.empty()) {
@@ -420,7 +420,7 @@ auto Database::mset(std::string_view statement) -> std::string {
     return ok;
 }
 
-auto Database::msetnx(std::string_view statement) -> std::string {
+auto Database::mSetNx(std::string_view statement) -> std::string {
     std::vector<std::pair<std::string, std::string>> keyValues;
 
     {
@@ -504,7 +504,7 @@ auto Database::append(const std::string_view statement) -> std::string {
     return integer + std::to_string(size);
 }
 
-auto Database::hdel(std::string_view statement) -> std::string {
+auto Database::hDel(std::string_view statement) -> std::string {
     unsigned long count{};
 
     {
@@ -512,8 +512,8 @@ auto Database::hdel(std::string_view statement) -> std::string {
         const auto key{statement.substr(0, space)};
         statement.remove_prefix(space + 1);
 
-        std::vector<std::string> fileds;
-        for (const auto &view : statement | std::views::split(' ')) fileds.emplace_back(std::string_view{view});
+        std::vector<std::string> fields;
+        for (const auto &view : statement | std::views::split(' ')) fields.emplace_back(std::string_view{view});
 
         const std::lock_guard lockGuard{this->lock};
 
@@ -521,7 +521,7 @@ auto Database::hdel(std::string_view statement) -> std::string {
             if (entry->getType() == Entry::Type::hash) {
                 std::unordered_map<std::string, std::string> &hash{entry->getHash()};
 
-                for (const auto &filed : fileds) count += hash.erase(filed);
+                for (const auto &field : fields) count += hash.erase(field);
             } else return wrongType;
         }
     }
@@ -529,7 +529,7 @@ auto Database::hdel(std::string_view statement) -> std::string {
     return integer + std::to_string(count);
 }
 
-auto Database::hexists(const std::string_view statement) -> std::string {
+auto Database::hExists(const std::string_view statement) -> std::string {
     bool isExist{};
 
     {
@@ -549,7 +549,7 @@ auto Database::hexists(const std::string_view statement) -> std::string {
     return integer + std::to_string(isExist);
 }
 
-auto Database::hget(const std::string_view statement) -> std::string {
+auto Database::hGet(const std::string_view statement) -> std::string {
     std::string value;
 
     {
@@ -572,19 +572,19 @@ auto Database::hget(const std::string_view statement) -> std::string {
     return '"' + value + '"';
 }
 
-auto Database::hgetAll(const std::string_view statement) -> std::string {
-    std::vector<std::pair<std::string, std::string>> filedValues;
+auto Database::hGetAll(const std::string_view statement) -> std::string {
+    std::vector<std::pair<std::string, std::string>> fieldValues;
 
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr)
-            for (const auto &[field, value] : entry->getHash()) filedValues.emplace_back(field, value);
+            for (const auto &[field, value] : entry->getHash()) fieldValues.emplace_back(field, value);
     }
 
     std::string result;
     unsigned long index{};
-    for (const auto &[field, value] : filedValues) {
+    for (const auto &[field, value] : fieldValues) {
         result += std::to_string(++index) + ") ";
         result += '"' + field + '"' + '\n';
 
@@ -600,7 +600,7 @@ auto Database::hgetAll(const std::string_view statement) -> std::string {
     return emptyArray;
 }
 
-auto Database::hincrBy(std::string_view statement) -> std::string {
+auto Database::hIncrBy(std::string_view statement) -> std::string {
     std::string value;
 
     {
@@ -643,24 +643,24 @@ auto Database::hincrBy(std::string_view statement) -> std::string {
     return integer + value;
 }
 
-auto Database::hkeys(const std::string_view statement) -> std::string {
-    std::vector<std::string> fileds;
+auto Database::hKeys(const std::string_view statement) -> std::string {
+    std::vector<std::string> fields;
 
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash)
-                for (const std::string_view filed : entry->getHash() | std::views::keys) fileds.emplace_back(filed);
+                for (const std::string_view field : entry->getHash() | std::views::keys) fields.emplace_back(field);
             else return wrongType;
         }
     }
 
     std::string result;
     unsigned long index{};
-    for (const auto &filed : fileds) {
+    for (const auto &field : fields) {
         result += std::to_string(++index) + ") ";
-        result += '"' + filed + '"' + '\n';
+        result += '"' + field + '"' + '\n';
     }
     if (!result.empty()) {
         result.pop_back();
@@ -671,7 +671,7 @@ auto Database::hkeys(const std::string_view statement) -> std::string {
     return emptyArray;
 }
 
-auto Database::hlen(const std::string_view statement) -> std::string {
+auto Database::hLen(const std::string_view statement) -> std::string {
     unsigned long size{};
 
     {
@@ -686,7 +686,7 @@ auto Database::hlen(const std::string_view statement) -> std::string {
     return integer + std::to_string(size);
 }
 
-auto Database::hset(std::string_view statement) -> std::string {
+auto Database::hSet(std::string_view statement) -> std::string {
     unsigned long count{};
 
     {
@@ -694,7 +694,7 @@ auto Database::hset(std::string_view statement) -> std::string {
         const auto key{statement.substr(0, space)};
         statement.remove_prefix(space + 1);
 
-        std::vector<std::pair<std::string_view, std::string_view>> filedValues;
+        std::vector<std::pair<std::string_view, std::string_view>> fieldValues;
         while (!statement.empty()) {
             space = statement.find(' ');
             const auto field{statement.substr(0, space)};
@@ -710,7 +710,7 @@ auto Database::hset(std::string_view statement) -> std::string {
                 statement = {};
             }
 
-            filedValues.emplace_back(field, value);
+            fieldValues.emplace_back(field, value);
         }
 
         bool isNew{};
@@ -723,15 +723,15 @@ auto Database::hset(std::string_view statement) -> std::string {
             if (entry->getType() != Entry::Type::hash) return wrongType;
         } else isNew = true;
 
-        for (const auto &[first, second] : filedValues) {
-            std::string filed{first}, value{second};
+        for (const auto &[first, second] : fieldValues) {
+            std::string field{first}, value{second};
 
             if (!isNew) {
                 std::unordered_map<std::string, std::string> &hash{entry->getHash()};
 
-                if (!hash.contains(filed)) ++count;
-                hash[std::move(filed)] = std::move(value);
-            } else newHash.emplace(std::move(filed), std::move(value));
+                if (!hash.contains(field)) ++count;
+                hash[std::move(field)] = std::move(value);
+            } else newHash.emplace(std::move(field), std::move(value));
         }
 
         if (isNew) {
@@ -743,7 +743,7 @@ auto Database::hset(std::string_view statement) -> std::string {
     return integer + std::to_string(count);
 }
 
-auto Database::hvals(const std::string_view statement) -> std::string {
+auto Database::hVals(const std::string_view statement) -> std::string {
     std::vector<std::string> values;
 
     {
@@ -771,7 +771,7 @@ auto Database::hvals(const std::string_view statement) -> std::string {
     return emptyArray;
 }
 
-auto Database::lindex(const std::string_view statement) -> std::string {
+auto Database::lIndex(const std::string_view statement) -> std::string {
     std::string element;
 
     {
@@ -797,7 +797,7 @@ auto Database::lindex(const std::string_view statement) -> std::string {
     return '"' + element + '"';
 }
 
-auto Database::llen(const std::string_view statement) -> std::string {
+auto Database::lLen(const std::string_view statement) -> std::string {
     unsigned long size{};
 
     {
@@ -812,7 +812,7 @@ auto Database::llen(const std::string_view statement) -> std::string {
     return integer + std::to_string(size);
 }
 
-auto Database::lpop(const std::string_view statement) -> std::string {
+auto Database::lPop(const std::string_view statement) -> std::string {
     std::string element;
 
     {
@@ -833,7 +833,7 @@ auto Database::lpop(const std::string_view statement) -> std::string {
     return nil;
 }
 
-auto Database::lpush(std::string_view statement) -> std::string {
+auto Database::lPush(std::string_view statement) -> std::string {
     unsigned long size;
 
     {
@@ -869,7 +869,7 @@ auto Database::lpush(std::string_view statement) -> std::string {
     return integer + std::to_string(size);
 }
 
-auto Database::lpushx(std::string_view statement) -> std::string {
+auto Database::lPushX(std::string_view statement) -> std::string {
     unsigned long size{};
 
     {
