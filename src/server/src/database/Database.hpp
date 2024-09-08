@@ -9,11 +9,11 @@ class Database {
 public:
     Database(unsigned long index, std::span<const std::byte> data);
 
-    Database(const Database &) = delete;
+    Database(const Database &);
 
     Database(Database &&) noexcept;
 
-    auto operator=(const Database &) -> Database = delete;
+    auto operator=(const Database &) -> Database &;
 
     auto operator=(Database &&) noexcept -> Database &;
 

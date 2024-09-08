@@ -19,11 +19,29 @@ static const std::string wrongType{"(error) WRONGTYPE Operation against a key ho
 
 Database::Database(const unsigned long index, const std::span<const std::byte> data) : index{index}, skipList{data} {}
 
+Database::Database(const Database &other) {
+    const std::lock_guard lockGuard{other.lock};
+
+    this->index = other.index;
+    this->skipList = other.skipList;
+}
+
 Database::Database(Database &&other) noexcept {
     const std::lock_guard lockGuard{other.lock};
 
     this->index = other.index;
     this->skipList = std::move(other.skipList);
+}
+
+auto Database::operator=(const Database &other) -> Database & {
+    const std::scoped_lock scopedLock{this->lock, other.lock};
+
+    if (this == &other) return *this;
+
+    this->index = other.index;
+    this->skipList = other.skipList;
+
+    return *this;
 }
 
 auto Database::operator=(Database &&other) noexcept -> Database & {
