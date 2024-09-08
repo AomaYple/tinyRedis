@@ -86,320 +86,320 @@ auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<s
                 const std::lock_guard lockGuard{this->lock};
 
                 this->databases.try_emplace(index, Database{index, std::span<const std::byte>{}});
-                response = "OK";
-                isRecord = true;
-
-                break;
             }
+            response = "OK";
+            isRecord = true;
+
+            break;
         case Command::del:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).del(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::exists:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).exists(statement);
-
-                break;
             }
+
+            break;
         case Command::move:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).move(this->databases, statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::rename:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).rename(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::renameNx:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).renameNx(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::type:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).type(statement);
-
-                break;
             }
+
+            break;
         case Command::set:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).set(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::get:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).get(statement);
-
-                break;
             }
+
+            break;
         case Command::getRange:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).getRange(statement);
-
-                break;
             }
+
+            break;
         case Command::getBit:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).getBit(statement);
-
-                break;
             }
+
+            break;
         case Command::setBit:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).setBit(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::mGet:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).mGet(statement);
-
-                break;
             }
+
+            break;
         case Command::setNx:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).setNx(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::setRange:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).setRange(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::strlen:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).strlen(statement);
-
-                break;
             }
+
+            break;
         case Command::mSet:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).mSet(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::mSetNx:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).mSetNx(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::incr:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).incr(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::incrBy:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).incrBy(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::decr:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).decr(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::decrBy:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).decrBy(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::append:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).append(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::hDel:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).hDel(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::hExists:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).hExists(statement);
-
-                break;
             }
+
+            break;
         case Command::hGet:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).hGet(statement);
-
-                break;
             }
+
+            break;
         case Command::hGetAll:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).hGetAll(statement);
-
-                break;
             }
+
+            break;
         case Command::hIncrBy:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).hIncrBy(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::hKeys:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).hKeys(statement);
-
-                break;
             }
+
+            break;
         case Command::hLen:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).hLen(statement);
-
-                break;
             }
+
+            break;
         case Command::hSet:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).hSet(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::hVals:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).hVals(statement);
-
-                break;
             }
+
+            break;
         case Command::lIndex:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).lIndex(statement);
-
-                break;
             }
+
+            break;
         case Command::lLen:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).lLen(statement);
-
-                break;
             }
+
+            break;
         case Command::lPop:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).lPop(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::lPush:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).lPush(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
         case Command::lPushX:
             {
                 const std::shared_lock sharedLock{this->lock};
 
                 response = this->databases.at(index).lPushX(statement);
-                isRecord = true;
-
-                break;
             }
+            isRecord = true;
+
+            break;
     }
     if (isRecord) this->record(requestCopy);
     const auto bytes{std::as_bytes(std::span{response})};
@@ -461,7 +461,6 @@ auto DatabaseManager::record(const std::span<const std::byte> request) -> void {
     this->aofBuffer.insert(this->aofBuffer.cend(), sizeof(requestSize), std::byte{});
     *reinterpret_cast<std::remove_const_t<decltype(requestSize)> *>(this->aofBuffer.data() + this->aofBuffer.size() -
                                                                     sizeof(requestSize)) = requestSize;
-
     this->aofBuffer.insert(this->aofBuffer.cend(), request.cbegin(), request.cend());
 
     ++this->writeCount;
@@ -472,8 +471,8 @@ auto DatabaseManager::serialize() -> std::vector<std::byte> {
     std::vector<std::byte> serialization{sizeof(size)};
     *reinterpret_cast<std::remove_const_t<decltype(size)> *>(serialization.data()) = size;
 
-    for (auto &value : this->databases | std::views::values) {
-        const std::vector subSerialization{value.serialize()};
+    for (auto &database : this->databases | std::views::values) {
+        const std::vector subSerialization{database.serialize()};
         serialization.insert(serialization.cend(), subSerialization.cbegin(), subSerialization.cend());
     }
 
