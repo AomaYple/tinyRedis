@@ -176,6 +176,7 @@ auto Ring::submit(const Submission &submission) -> void {
     }
 
     io_uring_sqe_set_flags(sqe, submission.flags);
+    sqe->ioprio |= submission.ioPriority;
     io_uring_sqe_set_data64(sqe, submission.userData);
 }
 

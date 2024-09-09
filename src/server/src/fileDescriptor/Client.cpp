@@ -10,6 +10,7 @@ auto Client::receive(const int ringBufferId) const noexcept -> Awaiter {
         this->getFileDescriptor(),
         IOSQE_FIXED_FILE | IOSQE_BUFFER_SELECT,
         0,
+        0,
         Submission::Receive{std::span<std::byte>{}, 0, ringBufferId},
     });
 
@@ -21,6 +22,7 @@ auto Client::send(const std::span<const std::byte> data) const noexcept -> Await
     awaiter.setSubmission(Submission{
         this->getFileDescriptor(),
         IOSQE_FIXED_FILE,
+        0,
         0,
         Submission::Send{data, 0, 0},
     });

@@ -6,7 +6,7 @@ auto FileDescriptor::getFileDescriptor() const noexcept -> int { return this->fi
 
 auto FileDescriptor::close() const noexcept -> Awaiter {
     Awaiter awaiter;
-    awaiter.setSubmission(Submission{this->fileDescriptor, 0, 0, Submission::Close{}});
+    awaiter.setSubmission(Submission{this->fileDescriptor, 0, 0, 0, Submission::Close{}});
 
     return awaiter;
 }
