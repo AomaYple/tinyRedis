@@ -25,7 +25,8 @@ Server::Server(const int fileDescriptor) : FileDescriptor(fileDescriptor) {}
 
 auto Server::accept() const noexcept -> Awaiter {
     Awaiter awaiter;
-    awaiter.setSubmission(Submission{this->getFileDescriptor(), IOSQE_FIXED_FILE, 0, 0, Submission::Accept{}});
+    awaiter.setSubmission(
+        Submission{this->getFileDescriptor(), IOSQE_FIXED_FILE, IORING_ACCEPT_POLL_FIRST, 0, Submission::Accept{}});
 
     return awaiter;
 }
