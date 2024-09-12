@@ -8,13 +8,13 @@ public:
 
     FileDescriptor(const FileDescriptor &) = delete;
 
-    FileDescriptor(FileDescriptor &&) noexcept = default;
+    constexpr FileDescriptor(FileDescriptor &&) noexcept = default;
 
     auto operator=(const FileDescriptor &) -> FileDescriptor & = delete;
 
-    auto operator=(FileDescriptor &&) noexcept -> FileDescriptor & = delete;
+    constexpr auto operator=(FileDescriptor &&) noexcept -> FileDescriptor & = delete;
 
-    virtual ~FileDescriptor() = default;
+    constexpr virtual ~FileDescriptor() = default;
 
     [[nodiscard]] auto getFileDescriptor() const noexcept -> int;
 

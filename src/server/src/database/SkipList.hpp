@@ -12,7 +12,7 @@ class SkipList {
     };
 
 public:
-    SkipList() = default;
+    constexpr SkipList() = default;
 
     explicit SkipList(std::span<const std::byte> serialization);
 

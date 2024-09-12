@@ -12,13 +12,13 @@ public:
 
     Timer(const Timer &) = delete;
 
-    Timer(Timer &&) noexcept = default;
+    constexpr Timer(Timer &&) noexcept = default;
 
     auto operator=(const Timer &) -> Timer & = delete;
 
-    auto operator=(Timer &&) noexcept-> Timer & = delete;
+    auto operator=(Timer &&) noexcept -> Timer & = delete;
 
-    ~Timer() override = default;
+    constexpr ~Timer() override = default;
 
     [[nodiscard]] auto timing() noexcept -> Awaiter;
 

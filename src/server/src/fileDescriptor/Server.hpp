@@ -14,13 +14,13 @@ public:
 
     Server(const Server &) = delete;
 
-    Server(Server &&) noexcept = default;
+    constexpr Server(Server &&) noexcept = default;
 
     auto operator=(const Server &) -> Server & = delete;
 
     auto operator=(Server &&) noexcept -> Server & = delete;
 
-    ~Server() override = default;
+    constexpr ~Server() override = default;
 
     [[nodiscard]] auto accept() const noexcept -> Awaiter;
 

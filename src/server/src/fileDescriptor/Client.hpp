@@ -8,13 +8,13 @@ public:
 
     Client(const Client &) = delete;
 
-    Client(Client &&) noexcept = default;
+    constexpr Client(Client &&) noexcept = default;
 
     auto operator=(const Client &) -> Client & = delete;
 
     auto operator=(Client &&) noexcept -> Client & = delete;
 
-    ~Client() override = default;
+    constexpr ~Client() override = default;
 
     [[nodiscard]] auto receive(int ringBufferId) const noexcept -> Awaiter;
 
