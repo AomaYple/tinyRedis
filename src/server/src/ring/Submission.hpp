@@ -46,5 +46,4 @@ struct Submission {
     unsigned short ioPriority;
     unsigned long userData;
     std::variant<Write, Accept, Read, Receive, Send, Truncate, Close> parameter;
-    Type type{static_cast<Type>(parameter.index())};
 };

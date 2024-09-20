@@ -126,7 +126,7 @@ auto Ring::freeRingBuffer(io_uring_buf_ring *const ringBufferHandle, const unsig
 auto Ring::submit(const Submission &submission) -> void {
     io_uring_sqe *const sqe{this->getSqe()};
 
-    switch (submission.type) {
+    switch (static_cast<Submission::Type>(submission.parameter.index())) {
         case Submission::Type::write:
             {
                 const auto [buffer, offset]{std::get<Submission::Write>(submission.parameter)};

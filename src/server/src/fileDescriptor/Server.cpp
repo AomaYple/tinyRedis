@@ -24,11 +24,9 @@ auto Server::create(const std::string_view host, const unsigned short port) -> i
 Server::Server(const int fileDescriptor) : FileDescriptor(fileDescriptor) {}
 
 auto Server::accept() const noexcept -> Awaiter {
-    Awaiter awaiter;
-    awaiter.setSubmission(
-        Submission{this->getFileDescriptor(), IOSQE_FIXED_FILE, IORING_ACCEPT_POLL_FIRST, 0, Submission::Accept{}});
-
-    return awaiter;
+    return Awaiter{
+        Submission{this->getFileDescriptor(), IOSQE_FIXED_FILE, IORING_ACCEPT_POLL_FIRST, 0, Submission::Accept{}}
+    };
 }
 
 auto Server::socket(const std::source_location sourceLocation) -> int {

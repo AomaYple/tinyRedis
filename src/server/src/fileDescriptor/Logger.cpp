@@ -29,12 +29,9 @@ auto Logger::write() -> Awaiter {
         this->logs.pop();
     }
 
-    Awaiter awaiter;
-    awaiter.setSubmission(Submission{
-        this->getFileDescriptor(), IOSQE_FIXED_FILE, 0, 0, Submission::Write{this->data, 0}
-    });
-
-    return awaiter;
+    return Awaiter{
+        Submission{this->getFileDescriptor(), IOSQE_FIXED_FILE, 0, 0, Submission::Write{this->data, 0}}
+    };
 }
 
 auto Logger::wrote() noexcept -> void { this->data.clear(); }

@@ -437,19 +437,15 @@ auto DatabaseManager::isCanTruncate() const noexcept -> bool {
 }
 
 auto DatabaseManager::truncate() const noexcept -> Awaiter {
-    Awaiter awaiter;
-    awaiter.setSubmission(Submission{this->getFileDescriptor(), IOSQE_FIXED_FILE, 0, 0, Submission::Truncate{}});
-
-    return awaiter;
+    return Awaiter{
+        Submission{this->getFileDescriptor(), IOSQE_FIXED_FILE, 0, 0, Submission::Truncate{}}
+    };
 }
 
 auto DatabaseManager::write() const noexcept -> Awaiter {
-    Awaiter awaiter;
-    awaiter.setSubmission(Submission{
+    return Awaiter{Submission{
         this->getFileDescriptor(), IOSQE_FIXED_FILE, 0, 0, Submission::Write{this->writeBuffer, 0}
-    });
-
-    return awaiter;
+    }};
 }
 
 auto DatabaseManager::wrote() noexcept -> void { this->writeBuffer.clear(); }
