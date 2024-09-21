@@ -13,7 +13,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 
 target_compile_options(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Debug>:-Og -fsanitize=address>
-        $<$<CONFIG:Release>:-Ofast>
+        $<$<CONFIG:Release>:-Ofast -march=native>
 )
 
 target_link_options(${PROJECT_NAME} PRIVATE
