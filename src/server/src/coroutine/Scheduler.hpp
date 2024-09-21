@@ -68,7 +68,7 @@ private:
     RingBuffer ringBuffer{
         this->ring,
         std::bit_ceil(static_cast<unsigned int>(getFileDescriptorLimit()) / std::thread::hardware_concurrency()) * 2,
-        4096, 0};
+        1024, 0};
     std::unordered_map<unsigned long, std::shared_ptr<Task>> tasks;
     unsigned long currentUserData{};
     bool main;
