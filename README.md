@@ -61,3 +61,7 @@ cd build/tinyRedis/tinyRedisServer
 cd build/tinyRedis/tinyRedisClient
 ./tinyRedisClient
 ```
+
+## 演示
+
+![image](show/show.png)
