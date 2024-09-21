@@ -120,7 +120,7 @@ auto SkipList::initialize() -> std::array<Node *, 32> {
 auto SkipList::copy() const -> std::array<Node *, 32> {
     std::array<Node *, 32> copies;
 
-    for (unsigned long i{}; i != this->levels.size(); ++i) {
+    for (unsigned char i{}; i != this->levels.size(); ++i) {
         Node *previous{};
         for (const Node *node{this->levels[i]}; node != nullptr; node = node->next) {
             const auto newNode{new Node{std::make_shared<Entry>(*node->entry)}};
