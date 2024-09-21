@@ -14,5 +14,5 @@ public:
 
 private:
     std::coroutine_handle<Task::promise_type> handle;
-    Submission submission{};
+    Submission submission;
 };

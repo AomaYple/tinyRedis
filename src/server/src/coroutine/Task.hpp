@@ -26,8 +26,8 @@ public:
         [[nodiscard]] auto getOutcome() const noexcept -> Outcome;
 
     private:
-        Submission submission{};
-        Outcome outcome{};
+        Submission submission;
+        Outcome outcome;
     };
 
     explicit Task(std::coroutine_handle<promise_type> handle) noexcept;

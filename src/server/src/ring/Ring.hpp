@@ -10,9 +10,6 @@ struct Submission;
 
 class Ring {
 public:
-    [[nodiscard]] static auto
-        getFileDescriptorLimit(std::source_location sourceLocation = std::source_location::current()) -> unsigned long;
-
     Ring(unsigned int entries, io_uring_params &params);
 
     Ring(const Ring &) = delete;

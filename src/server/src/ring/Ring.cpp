@@ -4,19 +4,6 @@
 #include "Completion.hpp"
 #include "Submission.hpp"
 
-#include <sys/resource.h>
-
-auto Ring::getFileDescriptorLimit(const std::source_location sourceLocation) -> unsigned long {
-    rlimit limit{};
-    if (getrlimit(RLIMIT_NOFILE, &limit) == -1) {
-        throw Exception{
-            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
-        };
-    }
-
-    return limit.rlim_cur;
-}
-
 Ring::Ring(const unsigned int entries, io_uring_params &params) :
     handle{[entries, &params](const std::source_location sourceLocation = std::source_location::current()) {
         io_uring handle{};

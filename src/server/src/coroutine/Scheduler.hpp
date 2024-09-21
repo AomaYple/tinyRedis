@@ -9,6 +9,9 @@
 class Client;
 
 class Scheduler {
+    [[nodiscard]] static auto
+        getFileDescriptorLimit(std::source_location sourceLocation = std::source_location::current()) -> unsigned long;
+
 public:
     static auto registerSignal(std::source_location sourceLocation = std::source_location::current()) -> void;
 
@@ -62,7 +65,10 @@ private:
     const Server server{1};
     Timer timer{2};
     std::unordered_map<int, Client> clients;
-    RingBuffer ringBuffer{this->ring, std::bit_ceil(2048 / std::thread::hardware_concurrency()), 1024, 0};
+    RingBuffer ringBuffer{
+        this->ring,
+        std::bit_ceil(static_cast<unsigned int>(getFileDescriptorLimit()) / std::thread::hardware_concurrency()) * 2,
+        4096, 0};
     std::unordered_map<unsigned long, std::shared_ptr<Task>> tasks;
     unsigned long currentUserData{};
     bool main;
