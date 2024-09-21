@@ -36,7 +36,7 @@
 
 ## 环境
 
-GCC14以上，CMake，Ninja，liburing2.4以上
+GCC14及以上，CMake，Ninja，liburing2.7及以上
 
 ## 编译
 
