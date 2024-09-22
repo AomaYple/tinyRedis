@@ -54,29 +54,22 @@ auto Database::serialize() -> std::vector<std::byte> {
 
 auto Database::del(const std::string_view statement) -> std::string {
     unsigned long count{};
-    {
-        std::vector<std::string_view> keys;
-        for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
+    std::vector<std::string_view> keys;
+    for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
 
-        const std::lock_guard lockGuard{this->lock};
-
-        for (const auto key : keys) count += this->skipList.erase(key);
-    }
+    for (const std::lock_guard lockGuard{this->lock}; const auto key : keys) count += this->skipList.erase(key);
 
     return integer + std::to_string(count);
 }
 
 auto Database::exists(const std::string_view statement) -> std::string {
     unsigned long count{};
-    {
-        std::vector<std::string_view> keys;
-        for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
 
-        const std::shared_lock sharedLock{this->lock};
+    std::vector<std::string_view> keys;
+    for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
 
-        for (const auto key : keys)
-            if (this->skipList.find(key) != nullptr) ++count;
-    }
+    for (const std::shared_lock sharedLock{this->lock}; const auto key : keys)
+        if (this->skipList.find(key) != nullptr) ++count;
 
     return integer + std::to_string(count);
 }
@@ -249,23 +242,19 @@ auto Database::getBit(const std::string_view statement) -> std::string {
 
 auto Database::mGet(const std::string_view statement) -> std::string {
     std::vector<std::string> values;
-    {
-        std::vector<std::string_view> keys;
-        for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
 
-        const std::shared_lock sharedLock{this->lock};
+    std::vector<std::string_view> keys;
+    for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
 
-        for (const auto key : keys) {
-            if (const std::shared_ptr entry{this->skipList.find(key)};
-                entry != nullptr && entry->getType() == Entry::Type::string)
-                values.emplace_back(entry->getString());
-            else values.emplace_back();
-        }
+    for (const std::shared_lock sharedLock{this->lock}; const auto key : keys) {
+        if (const std::shared_ptr entry{this->skipList.find(key)};
+            entry != nullptr && entry->getType() == Entry::Type::string)
+            values.emplace_back(entry->getString());
+        else values.emplace_back();
     }
 
     std::string result;
-    unsigned long index{};
-    for (const auto &value : values) {
+    for (unsigned long index{}; const auto &value : values) {
         result += std::to_string(++index) + ") ";
 
         if (!value.empty()) result += '"' + value + '"' + '\n';
@@ -384,30 +373,26 @@ auto Database::strlen(const std::string_view statement) -> std::string {
 }
 
 auto Database::mSet(std::string_view statement) -> std::string {
-    {
-        std::vector<std::shared_ptr<Entry>> entries;
-        while (!statement.empty()) {
-            unsigned long space{statement.find(' ')};
-            const auto key{statement.substr(0, space)};
+    std::vector<std::shared_ptr<Entry>> entries;
+    while (!statement.empty()) {
+        unsigned long space{statement.find(' ')};
+        const auto key{statement.substr(0, space)};
+        statement.remove_prefix(space + 1);
+
+        space = statement.find(' ');
+        std::string_view value;
+        if (space != std::string_view::npos) {
+            value = statement.substr(0, space);
             statement.remove_prefix(space + 1);
-
-            space = statement.find(' ');
-            std::string_view value;
-            if (space != std::string_view::npos) {
-                value = statement.substr(0, space);
-                statement.remove_prefix(space + 1);
-            } else {
-                value = statement;
-                statement = {};
-            }
-
-            entries.emplace_back(std::make_shared<Entry>(std::string{key}, std::string{value}));
+        } else {
+            value = statement;
+            statement = {};
         }
 
-        const std::lock_guard lockGuard{this->lock};
-
-        for (const auto &entry : entries) this->skipList.insert(entry);
+        entries.emplace_back(std::make_shared<Entry>(std::string{key}, std::string{value}));
     }
+
+    for (const std::lock_guard lockGuard{this->lock}; const auto &entry : entries) this->skipList.insert(entry);
 
     return ok;
 }
@@ -568,8 +553,7 @@ auto Database::hGetAll(const std::string_view statement) -> std::string {
     }
 
     std::string result;
-    unsigned long index{};
-    for (const auto &[field, value] : fieldValues) {
+    for (unsigned long index{}; const auto &[field, value] : fieldValues) {
         result += std::to_string(++index) + ") ";
         result += '"' + field + '"' + '\n';
 
@@ -640,8 +624,7 @@ auto Database::hKeys(const std::string_view statement) -> std::string {
     }
 
     std::string result;
-    unsigned long index{};
-    for (const auto &field : fields) {
+    for (unsigned long index{}; const auto &field : fields) {
         result += std::to_string(++index) + ") ";
         result += '"' + field + '"' + '\n';
     }
@@ -737,8 +720,7 @@ auto Database::hVals(const std::string_view statement) -> std::string {
     }
 
     std::string result;
-    unsigned long index{};
-    for (const auto &value : values) {
+    for (unsigned long index{}; const auto &value : values) {
         result += std::to_string(++index) + ") ";
         result += '"' + value + '"' + '\n';
     }
