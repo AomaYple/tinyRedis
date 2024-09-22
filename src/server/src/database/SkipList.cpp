@@ -3,6 +3,7 @@
 #include "Entry.hpp"
 
 #include <random>
+#include <ranges>
 #include <utility>
 
 SkipList::SkipList(std::span<const std::byte> serialization) {
@@ -106,12 +107,11 @@ auto SkipList::serialize() const -> std::vector<std::byte> {
 auto SkipList::initialize() -> std::array<Node *, 32> {
     std::array<Node *, 32> levels;
 
-    Node *previous{};
-    for (auto level{levels.rbegin()}; level != levels.crend(); ++level) {
-        *level = new Node{std::make_shared<Entry>(std::string{}, std::string{})};
+    for (Node *previous{}; auto &level : levels | std::views::reverse) {
+        level = new Node{std::make_shared<Entry>(std::string{}, std::string{})};
 
-        if (previous != nullptr) previous->down = *level;
-        previous = *level;
+        if (previous != nullptr) previous->down = level;
+        previous = level;
     }
 
     return levels;
