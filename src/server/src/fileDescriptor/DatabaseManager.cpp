@@ -432,7 +432,7 @@ auto DatabaseManager::isWritable() -> bool {
     return false;
 }
 
-auto DatabaseManager::isCanTruncate() const noexcept -> bool {
+auto DatabaseManager::isCanTruncate() const -> bool {
     return this->seconds == std::chrono::seconds::zero() && !this->writeBuffer.empty();
 }
 

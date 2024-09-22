@@ -4,7 +4,7 @@
 
 class Exception final : public std::exception {
 public:
-    explicit Exception(Log &&log = Log{});
+    explicit Exception(Log &&log);
 
     [[nodiscard]] auto what() const noexcept -> const char * override;
 

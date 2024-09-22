@@ -8,7 +8,7 @@ class Ring;
 
 class RingBuffer {
 public:
-    RingBuffer(const std::shared_ptr<Ring> &ring, unsigned int entries, unsigned int subBufferSize, int id);
+    RingBuffer(const std::shared_ptr<Ring> &ring, unsigned int entries, unsigned int bufferSize, int id);
 
     RingBuffer(const RingBuffer &) = delete;
 
@@ -35,7 +35,7 @@ private:
 
     std::shared_ptr<Ring> ring;
     io_uring_buf_ring *handle;
-    std::vector<std::byte> buffer;
-    unsigned int subBufferSize;
+    std::vector<std::byte> bufferGroup;
+    unsigned int bufferSize;
     int id, mask, offset{};
 };
