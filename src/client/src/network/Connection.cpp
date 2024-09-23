@@ -5,6 +5,44 @@
 #include <arpa/inet.h>
 #include <utility>
 
+[[nodiscard]] constexpr auto socket(const std::source_location sourceLocation = std::source_location::current())
+    -> int {
+    const int fileDescriptor{::socket(AF_INET, SOCK_STREAM, 0)};
+    if (fileDescriptor == -1) {
+        throw Exception{
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
+        };
+    }
+
+    return fileDescriptor;
+}
+
+constexpr auto translateIpAddress(const std::string_view host, in_addr &address,
+                                  const std::source_location sourceLocation = std::source_location::current()) -> void {
+    if (inet_pton(AF_INET, host.data(), &address) != 1) {
+        throw Exception{
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
+        };
+    }
+}
+
+constexpr auto connect(const int fileDescriptor, const sockaddr_in &address,
+                       const std::source_location sourceLocation = std::source_location::current()) -> void {
+    if (connect(fileDescriptor, reinterpret_cast<const sockaddr *>(&address), sizeof(address)) == -1) {
+        throw Exception{
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
+        };
+    }
+}
+
+auto Connection::close(const std::source_location sourceLocation) const -> void {
+    if (this->fileDescriptor != -1 && ::close(this->fileDescriptor) == -1) {
+        throw Exception{
+            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
+        };
+    }
+}
+
 Connection::Connection(const std::string_view host, const unsigned short port) :
     fileDescriptor{[host, port] {
         const int fileDescriptor{socket()};
@@ -68,41 +106,4 @@ auto Connection::receive(const std::source_location sourceLocation) const -> std
     }
 
     return buffer;
-}
-
-auto Connection::socket(const std::source_location sourceLocation) -> int {
-    const int fileDescriptor{::socket(AF_INET, SOCK_STREAM, 0)};
-    if (fileDescriptor == -1) {
-        throw Exception{
-            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
-        };
-    }
-
-    return fileDescriptor;
-}
-
-auto Connection::translateIpAddress(const std::string_view host, in_addr &address,
-                                    const std::source_location sourceLocation) -> void {
-    if (inet_pton(AF_INET, host.data(), &address) != 1) {
-        throw Exception{
-            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
-        };
-    }
-}
-
-auto Connection::connect(const int fileDescriptor, const sockaddr_in &address,
-                         const std::source_location sourceLocation) -> void {
-    if (::connect(fileDescriptor, reinterpret_cast<const sockaddr *>(&address), sizeof(address)) == -1) {
-        throw Exception{
-            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
-        };
-    }
-}
-
-auto Connection::close(const std::source_location sourceLocation) const -> void {
-    if (this->fileDescriptor != -1 && ::close(this->fileDescriptor) == -1) {
-        throw Exception{
-            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
-        };
-    }
 }
