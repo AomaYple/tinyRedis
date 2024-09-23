@@ -152,7 +152,7 @@ auto SkipList::destroy() const noexcept -> void {
     }
 }
 
-auto SkipList::random() -> int {
+[[nodiscard]] constexpr auto randomZeroOne() -> int {
     static std::mt19937 generator{std::random_device{}()};
     static std::uniform_int_distribution distribution{0, 1};
 
@@ -161,7 +161,7 @@ auto SkipList::random() -> int {
 
 auto SkipList::randomLevel() const -> unsigned char {
     unsigned char level{};
-    while (random() == 0 && level != this->levels.size()) ++level;
+    while (randomZeroOne() == 0 && level != this->levels.size()) ++level;
 
     return level;
 }

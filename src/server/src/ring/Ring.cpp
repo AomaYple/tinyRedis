@@ -178,8 +178,8 @@ auto Ring::wait(const unsigned int count, const std::source_location sourceLocat
 
 auto Ring::poll(std::move_only_function<auto(const Completion &completion)->void> &&action) const -> int {
     int count{};
-    unsigned int head;
 
+    unsigned int head;
     const io_uring_cqe *cqe;
     io_uring_for_each_cqe(&this->handle, head, cqe) {
         action(Completion{

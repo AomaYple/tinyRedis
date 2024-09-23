@@ -16,9 +16,9 @@ auto Logger::create(const std::string_view filename, const std::source_location 
     return fileDescriptor;
 }
 
-Logger::Logger(const int fileDescriptor) : FileDescriptor{fileDescriptor} {}
+Logger::Logger(const int fileDescriptor) noexcept : FileDescriptor{fileDescriptor} {}
 
-auto Logger::push(Log &&log) -> void { this->logs.push(std::move(log)); }
+auto Logger::push(Log &&log) -> void { this->logs.emplace(std::move(log)); }
 
 auto Logger::isWritable() const noexcept -> bool { return !this->logs.empty() && this->data.empty(); }
 

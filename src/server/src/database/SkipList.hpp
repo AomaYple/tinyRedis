@@ -41,8 +41,6 @@ private:
 
     auto destroy() const noexcept -> void;
 
-    [[nodiscard]] static auto random() -> int;
-
     [[nodiscard]] auto randomLevel() const -> unsigned char;
 
     std::array<Node *, 32> levels{initialize()};

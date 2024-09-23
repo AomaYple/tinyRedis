@@ -8,8 +8,7 @@ class Log {
 public:
     enum class Level : unsigned char { info, warn, error, fatal };
 
-    explicit Log(Level level = {}, std::string &&text = {},
-                 std::source_location sourceLocation = std::source_location::current(),
+    explicit Log(Level level, std::string &&text, std::source_location sourceLocation = std::source_location::current(),
                  std::chrono::system_clock::time_point timestamp = std::chrono::system_clock::now(),
                  std::jthread::id joinThreadId = std::this_thread::get_id()) noexcept;
 

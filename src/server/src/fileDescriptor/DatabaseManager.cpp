@@ -18,6 +18,7 @@ auto DatabaseManager::create(const std::source_location sourceLocation) -> int {
             Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
         };
     }
+
     if (std::filesystem::file_size(filepath) == 0) {
         constexpr unsigned long count{};
         if (::write(fileDescriptor, &count, sizeof(count)) == -1) {
@@ -443,9 +444,9 @@ auto DatabaseManager::truncate() const noexcept -> Awaiter {
 }
 
 auto DatabaseManager::write() const noexcept -> Awaiter {
-    return Awaiter{Submission{
-        this->getFileDescriptor(), IOSQE_FIXED_FILE, 0, 0, Submission::Write{this->writeBuffer, 0}
-    }};
+    return Awaiter{
+        Submission{this->getFileDescriptor(), IOSQE_FIXED_FILE, 0, 0, Submission::Write{this->writeBuffer, 0}}
+    };
 }
 
 auto DatabaseManager::wrote() noexcept -> void { this->writeBuffer.clear(); }

@@ -2,15 +2,13 @@
 
 #include "FileDescriptor.hpp"
 
-#include <netinet/in.h>
-#include <source_location>
 #include <string_view>
 
 class Server final : public FileDescriptor {
 public:
     [[nodiscard]] static auto create(std::string_view host, unsigned short port) -> int;
 
-    explicit Server(int fileDescriptor);
+    explicit Server(int fileDescriptor) noexcept;
 
     Server(const Server &) = delete;
 
@@ -23,19 +21,4 @@ public:
     constexpr ~Server() override = default;
 
     [[nodiscard]] auto accept() const noexcept -> Awaiter;
-
-private:
-    [[nodiscard]] static auto socket(std::source_location sourceLocation = std::source_location::current()) -> int;
-
-    static auto setSocketOption(int fileDescriptor,
-                                std::source_location sourceLocation = std::source_location::current()) -> void;
-
-    static auto translateIpAddress(std::string_view host, in_addr &address,
-                                   std::source_location sourceLocation = std::source_location::current()) -> void;
-
-    static auto bind(int fileDescriptor, const sockaddr_in &address,
-                     std::source_location sourceLocation = std::source_location::current()) -> void;
-
-    static auto listen(int fileDescriptor, std::source_location sourceLocation = std::source_location::current())
-        -> void;
 };
