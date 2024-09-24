@@ -86,16 +86,14 @@ auto Connection::receive(const std::source_location sourceLocation) const -> std
 
     while (true) {
         std::vector<std::byte> subBuffer{1024};
-        if (const long result{recv(this->fileDescriptor, subBuffer.data(), subBuffer.size(), MSG_DONTWAIT)};
+
+        if (const long result{
+                recv(this->fileDescriptor, subBuffer.data(), subBuffer.size(), !buffer.empty() ? MSG_DONTWAIT : 0)};
             result > 0) {
             subBuffer.resize(result);
             buffer.insert(buffer.cend(), subBuffer.cbegin(), subBuffer.cend());
         } else {
-            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-                if (buffer.empty()) continue;
-
-                break;
-            }
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) break;
 
             throw Exception{
                 Log{Log::Level::fatal,
