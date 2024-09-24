@@ -9,18 +9,18 @@ auto Client::receive(const int ringBufferId) const noexcept -> Awaiter {
         Submission{
                    this->getFileDescriptor(),
                    IOSQE_FIXED_FILE | IOSQE_BUFFER_SELECT,
-                   0, 0,
+                   IORING_RECVSEND_POLL_FIRST, 0,
                    Submission::Receive{std::span<std::byte>{}, 0, ringBufferId},
                    }
     };
 }
 
 auto Client::send(const std::span<const std::byte> data) const noexcept -> Awaiter {
-    return Awaiter{Submission{
-        this->getFileDescriptor(),
-        IOSQE_FIXED_FILE,
-        0,
-        0,
-        Submission::Send{data, 0, 0},
-    }};
+    return Awaiter{
+        Submission{
+                   this->getFileDescriptor(),
+                   IOSQE_FIXED_FILE, 0,
+                   0, Submission::Send{data, 0, 0},
+                   }
+    };
 }

@@ -8,9 +8,7 @@ auto Task::promise_type::get_return_object() -> Task {
 
 auto Task::promise_type::unhandled_exception() const -> void { throw; }
 
-auto Task::promise_type::setSubmission(const Submission &submission) noexcept -> void {
-    this->submission = submission;
-}
+auto Task::promise_type::setSubmission(const Submission &submission) noexcept -> void { this->submission = submission; }
 
 auto Task::promise_type::getSubmission() const noexcept -> const Submission & { return this->submission; }
 
