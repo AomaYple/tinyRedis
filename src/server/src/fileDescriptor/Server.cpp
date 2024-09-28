@@ -7,7 +7,7 @@
 
 [[nodiscard]] constexpr auto socket(const std::source_location sourceLocation = std::source_location::current())
     -> int {
-    const int fileDescriptor{::socket(AF_INET, SOCK_STREAM, 0)};
+    const int fileDescriptor{socket(AF_INET, SOCK_STREAM, 0)};
     if (fileDescriptor == -1) {
         throw Exception{
             Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
@@ -77,4 +77,3 @@ auto Server::accept() const noexcept -> Awaiter {
         Submission{this->getFileDescriptor(), IOSQE_FIXED_FILE, IORING_ACCEPT_POLL_FIRST, 0, Submission::Accept{}}
     };
 }
-

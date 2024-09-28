@@ -48,4 +48,3 @@ auto Timer::timing() noexcept -> Awaiter {
                    }
     };
 }
-

@@ -2,13 +2,12 @@
 
 #include <liburing.h>
 #include <memory>
-#include <vector>
 
 class Ring;
 
 class RingBuffer {
 public:
-    RingBuffer(const std::shared_ptr<Ring> &ring, unsigned int entries, unsigned int bufferSize, int id);
+    RingBuffer(const std::shared_ptr<Ring> &ring, unsigned int entries, int id);
 
     RingBuffer(const RingBuffer &) = delete;
 
@@ -24,18 +23,15 @@ public:
 
     [[nodiscard]] auto getId() const noexcept -> int;
 
-    [[nodiscard]] auto readFromBuffer(unsigned short index, unsigned int dataSize) -> std::span<const std::byte>;
+    auto addBuffer(std::span<std::byte> buffer, unsigned short index) noexcept -> void;
 
     auto getAddedBufferCount() noexcept -> int;
 
 private:
     auto destroy() const -> void;
 
-    auto add(unsigned short index) noexcept -> void;
-
     std::shared_ptr<Ring> ring;
     io_uring_buf_ring *handle;
-    std::vector<std::byte> bufferGroup;
-    unsigned int bufferSize;
-    int id, mask, offset{};
+    unsigned int entries;
+    int id, offset{};
 };
