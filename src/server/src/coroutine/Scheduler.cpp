@@ -22,7 +22,7 @@ auto Scheduler::getFileDescriptorLimit(const std::source_location sourceLocation
 auto Scheduler::registerSignal(const std::source_location sourceLocation) -> void {
     struct sigaction signalAction {};
 
-    signalAction.sa_handler = [](int) noexcept { switcher.clear(std::memory_order_relaxed); };
+    signalAction.sa_handler = [](int) noexcept { switcher.clear(std::memory_order::relaxed); };
 
     if (sigaction(SIGTERM, &signalAction, nullptr) == -1) {
         throw Exception{
