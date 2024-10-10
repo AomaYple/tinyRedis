@@ -7,13 +7,9 @@
 #include <print>
 #include <utility>
 
-auto shieldSignal(std::source_location sourceLocation = std::source_location::current()) -> void;
-
 auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std::byte>;
 
 auto main() -> int {
-    shieldSignal();
-
     constexpr std::string_view host{"127.0.0.1"};
     constexpr unsigned short port{9090};
     const Connection connection{host, port};
@@ -72,24 +68,6 @@ auto main() -> int {
     }
 
     return 0;
-}
-
-auto shieldSignal(const std::source_location sourceLocation) -> void {
-    struct sigaction signalAction {};
-
-    signalAction.sa_handler = SIG_IGN;
-
-    if (sigaction(SIGTERM, &signalAction, nullptr) == -1) {
-        throw Exception{
-            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
-        };
-    }
-
-    if (sigaction(SIGINT, &signalAction, nullptr) == -1) {
-        throw Exception{
-            Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
-        };
-    }
 }
 
 auto formatRequest(std::string_view data, unsigned long &id) -> std::vector<std::byte> {
