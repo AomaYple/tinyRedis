@@ -37,6 +37,8 @@ public:
     auto wrote() noexcept -> void;
 
 private:
+    [[nodiscard]] static auto serializeEmptyRdb() -> std::vector<std::byte>;
+
     [[nodiscard]] static auto multi(Context &context) -> Reply;
 
     [[nodiscard]] static auto discard(Context &context) -> Reply;

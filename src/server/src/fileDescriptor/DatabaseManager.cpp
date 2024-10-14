@@ -18,14 +18,8 @@ auto DatabaseManager::create(const std::source_location sourceLocation) -> int {
     }
 
     if (std::filesystem::file_size(filepath) == 0) {
-        std::vector<std::byte> serialization;
-        for (unsigned long i{}; i != databaseCount; ++i) {
-            constexpr unsigned long size{};
-            const auto bytes{std::as_bytes(std::span{&size, 1})};
-            serialization.insert(serialization.cend(), bytes.cbegin(), bytes.cend());
-        }
-
-        if (::write(fileDescriptor, serialization.data(), serialization.size()) == -1) {
+        const std::vector emptyRdb{serializeEmptyRdb()};
+        if (::write(fileDescriptor, emptyRdb.data(), emptyRdb.size()) == -1) {
             throw Exception{
                 Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
             };
@@ -212,6 +206,18 @@ auto DatabaseManager::write() const noexcept -> Awaiter {
 }
 
 auto DatabaseManager::wrote() noexcept -> void { this->writeBuffer.clear(); }
+
+auto DatabaseManager::serializeEmptyRdb() -> std::vector<std::byte> {
+    std::vector<std::byte> serialization;
+
+    for (unsigned long i{}; i != databaseCount; ++i) {
+        constexpr unsigned long size{};
+        const auto bytes{std::as_bytes(std::span{&size, 1})};
+        serialization.insert(serialization.cend(), bytes.cbegin(), bytes.cend());
+    }
+
+    return serialization;
+}
 
 auto DatabaseManager::multi(Context &context) -> Reply {
     context.setIsTransaction(true);
