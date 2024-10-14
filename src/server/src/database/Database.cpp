@@ -1,13 +1,10 @@
 #include "Database.hpp"
 
+#include "../../../common/Reply.hpp"
 #include "Entry.hpp"
 
 #include <mutex>
 #include <ranges>
-
-static constexpr std::string ok{"OK"}, integer{"(integer) "}, nil{"(nil)"}, emptyArray{"(empty array)"};
-static const std::string wrongType{"(error) WRONGTYPE Operation against a key holding the wrong kind of value"},
-    wrongInteger{"(error) ERR value is not an integer or out of range"};
 
 [[nodiscard]] constexpr auto isInteger(const std::string &integer) {
     try {
@@ -38,32 +35,36 @@ auto Database::operator=(Database &&other) noexcept -> Database & {
 }
 
 auto Database::serialize() -> std::vector<std::byte> {
-    std::vector<std::byte> data{sizeof(this->index)};
-    *reinterpret_cast<decltype(this->index) *>(data.data()) = this->index;
-
-    std::vector<std::byte> serialization;
+    std::vector<std::byte> serializedSkipList;
     {
         const std::shared_lock sharedLock{this->lock};
 
-        serialization = this->skipList.serialize();
+        serializedSkipList = this->skipList.serialize();
     }
-    data.insert(data.cend(), serialization.cbegin(), serialization.cend());
 
-    return data;
+    std::vector<std::byte> serialization;
+
+    const unsigned long size{serializedSkipList.size()};
+    const auto sizeBytes{std::as_bytes(std::span{&size, 1})};
+    serialization.insert(serialization.cend(), sizeBytes.cbegin(), sizeBytes.cend());
+
+    serialization.insert(serialization.cend(), serializedSkipList.cbegin(), serializedSkipList.cend());
+
+    return serialization;
 }
 
-auto Database::del(const std::string_view statement) -> std::string {
-    unsigned long count{};
+auto Database::del(const std::string_view statement) -> Reply {
+    long count{};
     std::vector<std::string_view> keys;
     for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
 
-    for (const std::lock_guard lockGuard{this->lock}; const auto key : keys) count += this->skipList.erase(key);
+    for (const std::lock_guard lockGuard{this->lock}; const auto key : keys) count += this->skipList.erase(key) ? 1 : 0;
 
-    return integer + std::to_string(count);
+    return {Reply::Type::integer, count};
 }
 
-auto Database::exists(const std::string_view statement) -> std::string {
-    unsigned long count{};
+auto Database::exists(const std::string_view statement) -> Reply {
+    long count{};
 
     std::vector<std::string_view> keys;
     for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
@@ -71,36 +72,32 @@ auto Database::exists(const std::string_view statement) -> std::string {
     for (const std::shared_lock sharedLock{this->lock}; const auto key : keys)
         if (this->skipList.find(key) != nullptr) ++count;
 
-    return integer + std::to_string(count);
+    return {Reply::Type::integer, count};
 }
 
-auto Database::move(std::unordered_map<unsigned long, Database> &databases, const std::string_view statement)
-    -> std::string {
+auto Database::move(const std::span<Database> databases, const std::string_view statement) -> Reply {
     bool isSuccess{};
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
 
-        if (const auto targetResult{databases.find(std::stoul(std::string{statement.substr(space + 1)}))};
-            targetResult != databases.cend()) {
-            Database &target{targetResult->second};
+        Database &target{databases[std::stoul(std::string{statement.substr(space + 1)})]};
 
-            const std::scoped_lock scopedLock{this->lock, target.lock};
+        const std::scoped_lock scopedLock{this->lock, target.lock};
 
-            if (const std::shared_ptr entry{this->skipList.find(key)};
-                entry != nullptr && target.skipList.find(key) == nullptr) {
-                this->skipList.erase(key);
-                target.skipList.insert(entry);
+        if (const std::shared_ptr entry{this->skipList.find(key)};
+            entry != nullptr && target.skipList.find(key) == nullptr) {
+            this->skipList.erase(key);
+            target.skipList.insert(entry);
 
-                isSuccess = true;
-            }
+            isSuccess = true;
         }
     }
 
-    return integer + std::to_string(isSuccess);
+    return {Reply::Type::integer, isSuccess ? 1 : 0};
 }
 
-auto Database::rename(const std::string_view statement) -> std::string {
+auto Database::rename(const std::string_view statement) -> Reply {
     const unsigned long space{statement.find(' ')};
     const auto key{statement.substr(0, space)}, newKey{statement.substr(space + 1)};
 
@@ -112,13 +109,13 @@ auto Database::rename(const std::string_view statement) -> std::string {
         entry->setKey(std::string{newKey});
         this->skipList.insert(entry);
 
-        return ok;
+        return {Reply::Type::status, ok};
     }
 
-    return "(error) ERR no such key";
+    return {Reply::Type::error, "ERR no such key"};
 }
 
-auto Database::renameNx(const std::string_view statement) -> std::string {
+auto Database::renameNx(const std::string_view statement) -> Reply {
     bool isSuccess{};
     {
         const unsigned long space{statement.find(' ')};
@@ -137,31 +134,39 @@ auto Database::renameNx(const std::string_view statement) -> std::string {
         }
     }
 
-    return integer + std::to_string(isSuccess);
+    return {Reply::Type::integer, isSuccess ? 1 : 0};
 }
 
-auto Database::type(const std::string_view statement) -> std::string {
-    const std::shared_lock sharedLock{this->lock};
+auto Database::type(const std::string_view statement) -> Reply {
+    std::string value;
+    {
+        const std::shared_lock sharedLock{this->lock};
 
-    if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
-        switch (entry->getType()) {
-            case Entry::Type::string:
-                return "string";
-            case Entry::Type::hash:
-                return "hash";
-            case Entry::Type::list:
-                return "list";
-            case Entry::Type::set:
-                return "set";
-            case Entry::Type::sortedSet:
-                return "zset";
-        }
+        if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
+            switch (entry->getType()) {
+                case Entry::Type::string:
+                    value = "string";
+                    break;
+                case Entry::Type::hash:
+                    value = "hash";
+                    break;
+                case Entry::Type::list:
+                    value = "list";
+                    break;
+                case Entry::Type::set:
+                    value = "set";
+                    break;
+                case Entry::Type::sortedSet:
+                    value = "zset";
+                    break;
+            }
+        } else value = "none";
     }
 
-    return "none";
+    return {Reply::Type::status, std::move(value)};
 }
 
-auto Database::set(const std::string_view statement) -> std::string {
+auto Database::set(const std::string_view statement) -> Reply {
     {
         const unsigned long space{statement.find(' ')};
         const auto entry{
@@ -172,24 +177,24 @@ auto Database::set(const std::string_view statement) -> std::string {
         this->skipList.insert(entry);
     }
 
-    return ok;
+    return {Reply::Type::status, ok};
 }
 
-auto Database::get(const std::string_view statement) -> std::string {
+auto Database::get(const std::string_view statement) -> Reply {
     std::string value;
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) value = entry->getString();
-            else return wrongType;
-        } else return nil;
+            else return {Reply::Type::error, wrongType};
+        } else return {Reply::Type::nil, 0};
     }
 
-    return '"' + value + '"';
+    return {Reply::Type::string, std::move(value)};
 }
 
-auto Database::getRange(std::string_view statement) -> std::string {
+auto Database::getRange(std::string_view statement) -> Reply {
     unsigned long space{statement.find(' ')};
     const auto key{statement.substr(0, space)};
     statement.remove_prefix(space + 1);
@@ -198,7 +203,7 @@ auto Database::getRange(std::string_view statement) -> std::string {
     auto start{std::stol(std::string{statement.substr(0, space)})},
         end{std::stol(std::string{statement.substr(space + 1)})};
 
-    std::string result;
+    std::string value;
     {
         const std::shared_lock sharedLock{this->lock};
 
@@ -212,15 +217,14 @@ auto Database::getRange(std::string_view statement) -> std::string {
             ++end;
             if (end > entryValueSize) end = entryValueSize;
 
-            if (start < entryValueSize && end > 0 && start < end)
-                result = entry->getString().substr(start, end - start);
+            if (start < entryValueSize && end > 0 && start < end) value = entry->getString().substr(start, end - start);
         }
     }
 
-    return '"' + result + '"';
+    return {Reply::Type::string, std::move(value)};
 }
 
-auto Database::getBit(const std::string_view statement) -> std::string {
+auto Database::getBit(const std::string_view statement) -> Reply {
     bool bit{};
     {
         const unsigned long space{statement.find(' ')};
@@ -233,15 +237,15 @@ auto Database::getBit(const std::string_view statement) -> std::string {
             if (entry->getType() == Entry::Type::string) {
                 if (const unsigned long index{offset / 8}; index < entry->getString().size())
                     bit = entry->getString()[index] >> offset % 8 & 1;
-            } else return wrongType;
+            } else return {Reply::Type::error, wrongType};
         }
     }
 
-    return integer + std::to_string(bit);
+    return {Reply::Type::integer, bit ? 1 : 0};
 }
 
-auto Database::mGet(const std::string_view statement) -> std::string {
-    std::vector<std::string> values;
+auto Database::mGet(const std::string_view statement) -> Reply {
+    std::vector<Reply> replies;
 
     std::vector<std::string_view> keys;
     for (const auto &view : statement | std::views::split(' ')) keys.emplace_back(view);
@@ -249,23 +253,14 @@ auto Database::mGet(const std::string_view statement) -> std::string {
     for (const std::shared_lock sharedLock{this->lock}; const auto key : keys) {
         if (const std::shared_ptr entry{this->skipList.find(key)};
             entry != nullptr && entry->getType() == Entry::Type::string)
-            values.emplace_back(entry->getString());
-        else values.emplace_back();
+            replies.emplace_back(Reply::Type::string, entry->getString());
+        else replies.emplace_back(Reply::Type::nil, 0);
     }
 
-    std::string result;
-    for (unsigned long index{}; const auto &value : values) {
-        result += std::to_string(++index) + ") ";
-
-        if (!value.empty()) result += '"' + value + '"' + '\n';
-        else result += nil + '\n';
-    }
-    result.pop_back();
-
-    return result;
+    return {Reply::Type::array, std::move(replies)};
 }
 
-auto Database::setBit(std::string_view statement) -> std::string {
+auto Database::setBit(std::string_view statement) -> Reply {
     bool oldBit{};
     {
         unsigned long space{statement.find(' ')};
@@ -290,7 +285,7 @@ auto Database::setBit(std::string_view statement) -> std::string {
 
                 if (value) element = static_cast<char>(element | 1 << position);
                 else element = static_cast<char>(element & ~(1 << position));
-            } else return wrongType;
+            } else return {Reply::Type::error, wrongType};
         } else {
             std::string newValue(index + 1, 0);
             if (char &element{newValue[index]}; value) element = static_cast<char>(element | 1 << position);
@@ -299,10 +294,10 @@ auto Database::setBit(std::string_view statement) -> std::string {
         }
     }
 
-    return integer + std::to_string(oldBit);
+    return {Reply::Type::integer, oldBit ? 1 : 0};
 }
 
-auto Database::setNx(const std::string_view statement) -> std::string {
+auto Database::setNx(const std::string_view statement) -> Reply {
     bool isSuccess{};
     {
         const unsigned long space{statement.find(' ')};
@@ -317,10 +312,10 @@ auto Database::setNx(const std::string_view statement) -> std::string {
         }
     }
 
-    return integer + std::to_string(isSuccess);
+    return {Reply::Type::integer, isSuccess ? 1 : 0};
 }
 
-auto Database::setRange(std::string_view statement) -> std::string {
+auto Database::setRange(std::string_view statement) -> Reply {
     unsigned long size;
 
     {
@@ -346,7 +341,7 @@ auto Database::setRange(std::string_view statement) -> std::string {
 
                 entryValue.replace(offset, value.size(), value);
                 size = entryValue.size();
-            } else return wrongType;
+            } else return {Reply::Type::error, wrongType};
         } else {
             std::string newValue{std::string(offset, 0) + std::string{value}};
             size = newValue.size();
@@ -355,24 +350,24 @@ auto Database::setRange(std::string_view statement) -> std::string {
         }
     }
 
-    return integer + std::to_string(size);
+    return {Reply::Type::integer, static_cast<long>(size)};
 }
 
-auto Database::strlen(const std::string_view statement) -> std::string {
+auto Database::strlen(const std::string_view statement) -> Reply {
     unsigned long size{};
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::string) size = entry->getString().size();
-            else return wrongType;
+            else return {Reply::Type::error, wrongType};
         }
     }
 
-    return integer + std::to_string(size);
+    return {Reply::Type::integer, static_cast<long>(size)};
 }
 
-auto Database::mSet(std::string_view statement) -> std::string {
+auto Database::mSet(std::string_view statement) -> Reply {
     std::vector<std::shared_ptr<Entry>> entries;
     while (!statement.empty()) {
         unsigned long space{statement.find(' ')};
@@ -386,7 +381,7 @@ auto Database::mSet(std::string_view statement) -> std::string {
             statement.remove_prefix(space + 1);
         } else {
             value = statement;
-            statement = {};
+            statement = std::string_view{};
         }
 
         entries.emplace_back(std::make_shared<Entry>(std::string{key}, std::string{value}));
@@ -394,10 +389,10 @@ auto Database::mSet(std::string_view statement) -> std::string {
 
     for (const std::lock_guard lockGuard{this->lock}; const auto &entry : entries) this->skipList.insert(entry);
 
-    return ok;
+    return {Reply::Type::status, ok};
 }
 
-auto Database::mSetNx(std::string_view statement) -> std::string {
+auto Database::mSetNx(std::string_view statement) -> Reply {
     std::vector<std::shared_ptr<Entry>> entries;
     {
         while (!statement.empty()) {
@@ -412,7 +407,7 @@ auto Database::mSetNx(std::string_view statement) -> std::string {
                 statement.remove_prefix(space + 1);
             } else {
                 value = statement;
-                statement = {};
+                statement = std::string_view{};
             }
 
             entries.emplace_back(std::make_shared<Entry>(std::string{key}, std::string{value}));
@@ -431,12 +426,12 @@ auto Database::mSetNx(std::string_view statement) -> std::string {
         for (const auto &entry : entries) this->skipList.insert(entry);
     }
 
-    return integer + std::to_string(entries.size());
+    return {Reply::Type::integer, static_cast<long>(entries.size())};
 }
 
-auto Database::incr(const std::string_view statement) -> std::string { return this->crement(statement, 1, true); }
+auto Database::incr(const std::string_view statement) -> Reply { return this->crement(statement, 1, true); }
 
-auto Database::incrBy(const std::string_view statement) -> std::string {
+auto Database::incrBy(const std::string_view statement) -> Reply {
     const unsigned long space{statement.find(' ')};
     const auto key{statement.substr(0, space)};
     const auto increment{std::stol(std::string{statement.substr(space + 1)})};
@@ -444,9 +439,9 @@ auto Database::incrBy(const std::string_view statement) -> std::string {
     return this->crement(key, increment, true);
 }
 
-auto Database::decr(const std::string_view statement) -> std::string { return this->crement(statement, 1, false); }
+auto Database::decr(const std::string_view statement) -> Reply { return this->crement(statement, 1, false); }
 
-auto Database::decrBy(const std::string_view statement) -> std::string {
+auto Database::decrBy(const std::string_view statement) -> Reply {
     const unsigned long space{statement.find(' ')};
     const auto key{statement.substr(0, space)};
     const auto increment{std::stol(std::string{statement.substr(space + 1)})};
@@ -454,7 +449,7 @@ auto Database::decrBy(const std::string_view statement) -> std::string {
     return this->crement(key, increment, false);
 }
 
-auto Database::append(const std::string_view statement) -> std::string {
+auto Database::append(const std::string_view statement) -> Reply {
     unsigned long size;
     {
         const unsigned long space{statement.find(' ')};
@@ -468,17 +463,17 @@ auto Database::append(const std::string_view statement) -> std::string {
 
                 entryValue += value;
                 size = entryValue.size();
-            } else return wrongType;
+            } else return {Reply::Type::error, wrongType};
         } else {
             size = value.size();
             this->skipList.insert(std::make_shared<Entry>(std::move(key), std::move(value)));
         }
     }
 
-    return integer + std::to_string(size);
+    return {Reply::Type::integer, static_cast<long>(size)};
 }
 
-auto Database::hDel(std::string_view statement) -> std::string {
+auto Database::hDel(std::string_view statement) -> Reply {
     unsigned long count{};
     {
         const unsigned long space{statement.find(' ')};
@@ -495,14 +490,14 @@ auto Database::hDel(std::string_view statement) -> std::string {
                 std::unordered_map<std::string, std::string> &hash{entry->getHash()};
 
                 for (const auto &field : fields) count += hash.erase(field);
-            } else return wrongType;
+            } else return {Reply::Type::error, wrongType};
         }
     }
 
-    return integer + std::to_string(count);
+    return {Reply::Type::integer, static_cast<long>(count)};
 }
 
-auto Database::hExists(const std::string_view statement) -> std::string {
+auto Database::hExists(const std::string_view statement) -> Reply {
     bool isExist{};
     {
         const unsigned long space{statement.find(' ')};
@@ -514,14 +509,14 @@ auto Database::hExists(const std::string_view statement) -> std::string {
         if (const std::shared_ptr entry{this->skipList.find(key)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash) {
                 if (entry->getHash().contains(field)) isExist = true;
-            } else return wrongType;
+            } else return {Reply::Type::error, wrongType};
         }
     }
 
-    return integer + std::to_string(isExist);
+    return {Reply::Type::integer, isExist ? 1 : 0};
 }
 
-auto Database::hGet(const std::string_view statement) -> std::string {
+auto Database::hGet(const std::string_view statement) -> Reply {
     std::string value;
     {
         const unsigned long space{statement.find(' ')};
@@ -535,41 +530,31 @@ auto Database::hGet(const std::string_view statement) -> std::string {
                 const std::unordered_map<std::string, std::string> &hash{entry->getHash()};
 
                 if (const auto result{hash.find(field)}; result != hash.cend()) value = result->second;
-                else return nil;
-            } else return wrongType;
-        } else return nil;
+                else return {Reply::Type::nil, 0};
+            } else return {Reply::Type::error, wrongType};
+        } else return {Reply::Type::nil, 0};
     }
 
-    return '"' + value + '"';
+    return {Reply::Type::string, std::move(value)};
 }
 
-auto Database::hGetAll(const std::string_view statement) -> std::string {
-    std::vector<std::pair<std::string, std::string>> fieldValues;
+auto Database::hGetAll(const std::string_view statement) -> Reply {
+    std::vector<Reply> replies;
     {
         const std::shared_lock sharedLock{this->lock};
 
-        if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr)
-            for (const auto &[field, value] : entry->getHash()) fieldValues.emplace_back(field, value);
+        if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
+            for (const auto &[field, value] : entry->getHash()) {
+                replies.emplace_back(Reply::Type::string, field);
+                replies.emplace_back(Reply::Type::string, value);
+            }
+        }
     }
 
-    std::string result;
-    for (unsigned long index{}; const auto &[field, value] : fieldValues) {
-        result += std::to_string(++index) + ") ";
-        result += '"' + field + '"' + '\n';
-
-        result += std::to_string(++index) + ") ";
-        result += '"' + value + '"' + '\n';
-    }
-    if (!result.empty()) {
-        result.pop_back();
-
-        return result;
-    }
-
-    return emptyArray;
+    return {Reply::Type::array, std::move(replies)};
 }
 
-auto Database::hIncrBy(std::string_view statement) -> std::string {
+auto Database::hIncrBy(std::string_view statement) -> Reply {
     std::string value;
     {
         unsigned long space{statement.find(' ')};
@@ -591,12 +576,12 @@ auto Database::hIncrBy(std::string_view statement) -> std::string {
                         result->second = std::to_string(std::stol(result->second) + crement);
 
                         value = result->second;
-                    } else return wrongInteger;
+                    } else return {Reply::Type::error, wrongInteger};
                 } else {
                     value = std::to_string(crement);
                     hash.emplace(std::move(field), value);
                 }
-            } else return wrongType;
+            } else return {Reply::Type::error, wrongType};
         } else {
             value = std::to_string(crement);
 
@@ -608,50 +593,40 @@ auto Database::hIncrBy(std::string_view statement) -> std::string {
         }
     }
 
-    return integer + value;
+    return {Reply::Type::integer, std::stol(value)};
 }
 
-auto Database::hKeys(const std::string_view statement) -> std::string {
-    std::vector<std::string> fields;
+auto Database::hKeys(const std::string_view statement) -> Reply {
+    std::vector<Reply> replies;
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
-            if (entry->getType() == Entry::Type::hash)
-                for (const std::string_view field : entry->getHash() | std::views::keys) fields.emplace_back(field);
-            else return wrongType;
+            if (entry->getType() == Entry::Type::hash) {
+                for (const std::string_view field : entry->getHash() | std::views::keys)
+                    replies.emplace_back(Reply::Type::string, std::string{field});
+            } else return {Reply::Type::error, wrongType};
         }
     }
 
-    std::string result;
-    for (unsigned long index{}; const auto &field : fields) {
-        result += std::to_string(++index) + ") ";
-        result += '"' + field + '"' + '\n';
-    }
-    if (!result.empty()) {
-        result.pop_back();
-
-        return result;
-    }
-
-    return emptyArray;
+    return {Reply::Type::array, std::move(replies)};
 }
 
-auto Database::hLen(const std::string_view statement) -> std::string {
+auto Database::hLen(const std::string_view statement) -> Reply {
     unsigned long size{};
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::hash) size = entry->getHash().size();
-            else return wrongType;
+            else return {Reply::Type::error, wrongType};
         }
     }
 
-    return integer + std::to_string(size);
+    return {Reply::Type::integer, static_cast<long>(size)};
 }
 
-auto Database::hSet(std::string_view statement) -> std::string {
+auto Database::hSet(std::string_view statement) -> Reply {
     unsigned long count{};
     {
         unsigned long space{statement.find(' ')};
@@ -671,7 +646,7 @@ auto Database::hSet(std::string_view statement) -> std::string {
                 statement.remove_prefix(space + 1);
             } else {
                 value = statement;
-                statement = {};
+                statement = std::string_view{};
             }
 
             fieldValues.emplace_back(field, value);
@@ -684,7 +659,7 @@ auto Database::hSet(std::string_view statement) -> std::string {
 
         const std::shared_ptr entry{this->skipList.find(key)};
         if (entry != nullptr) {
-            if (entry->getType() != Entry::Type::hash) return wrongType;
+            if (entry->getType() != Entry::Type::hash) return {Reply::Type::error, wrongType};
         } else isNew = true;
 
         for (const auto &[first, second] : fieldValues) {
@@ -704,37 +679,27 @@ auto Database::hSet(std::string_view statement) -> std::string {
         }
     }
 
-    return integer + std::to_string(count);
+    return {Reply::Type::integer, static_cast<long>(count)};
 }
 
-auto Database::hVals(const std::string_view statement) -> std::string {
-    std::vector<std::string> values;
+auto Database::hVals(const std::string_view statement) -> Reply {
+    std::vector<Reply> replies;
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
-            if (entry->getType() == Entry::Type::hash)
-                for (const std::string_view value : entry->getHash() | std::views::values) values.emplace_back(value);
-            else return wrongType;
+            if (entry->getType() == Entry::Type::hash) {
+                for (const std::string_view value : entry->getHash() | std::views::values)
+                    replies.emplace_back(Reply::Type::string, std::string{value});
+            } else return {Reply::Type::error, wrongType};
         }
     }
 
-    std::string result;
-    for (unsigned long index{}; const auto &value : values) {
-        result += std::to_string(++index) + ") ";
-        result += '"' + value + '"' + '\n';
-    }
-    if (!result.empty()) {
-        result.pop_back();
-
-        return result;
-    }
-
-    return emptyArray;
+    return {Reply::Type::array, std::move(replies)};
 }
 
-auto Database::lIndex(const std::string_view statement) -> std::string {
-    std::string element;
+auto Database::lIndex(const std::string_view statement) -> Reply {
+    std::string value;
     {
         const unsigned long space{statement.find(' ')};
         const auto key{statement.substr(0, space)};
@@ -748,51 +713,51 @@ auto Database::lIndex(const std::string_view statement) -> std::string {
                 const auto listSize{static_cast<decltype(index)>(list.size())};
 
                 index = index < 0 ? listSize + index : index;
-                if (index >= listSize || index < 0) return nil;
+                if (index >= listSize || index < 0) return {Reply::Type::nil, 0};
 
-                element = list[index];
-            } else return wrongType;
-        } else return nil;
+                value = list[index];
+            } else return {Reply::Type::error, wrongType};
+        } else return {Reply::Type::nil, 0};
     }
 
-    return '"' + element + '"';
+    return {Reply::Type::string, std::move(value)};
 }
 
-auto Database::lLen(const std::string_view statement) -> std::string {
+auto Database::lLen(const std::string_view statement) -> Reply {
     unsigned long size{};
     {
         const std::shared_lock sharedLock{this->lock};
 
         if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::list) size = entry->getList().size();
-            else return wrongType;
+            else return {Reply::Type::error, wrongType};
         }
     }
 
-    return integer + std::to_string(size);
+    return {Reply::Type::integer, static_cast<long>(size)};
 }
 
-auto Database::lPop(const std::string_view statement) -> std::string {
-    std::string element;
+auto Database::lPop(const std::string_view statement) -> Reply {
+    std::string value;
     {
         const std::lock_guard lockGuard{this->lock};
 
         if (const std::shared_ptr entry{this->skipList.find(statement)}; entry != nullptr) {
             if (entry->getType() == Entry::Type::list) {
                 if (std::deque<std::string> & list{entry->getList()}; !list.empty()) {
-                    element = std::move(list.front());
+                    value = std::move(list.front());
                     list.pop_front();
                 }
-            } else return wrongType;
+            } else return {Reply::Type::error, wrongType};
         }
     }
 
-    if (!element.empty()) return '"' + element + '"';
+    if (!value.empty()) return {Reply::Type::string, std::move(value)};
 
-    return nil;
+    return {Reply::Type::nil, 0};
 }
 
-auto Database::lPush(std::string_view statement) -> std::string {
+auto Database::lPush(std::string_view statement) -> Reply {
     unsigned long size;
     {
         const unsigned long space{statement.find(' ')};
@@ -809,7 +774,7 @@ auto Database::lPush(std::string_view statement) -> std::string {
 
         const std::shared_ptr entry{this->skipList.find(key)};
         if (entry != nullptr) {
-            if (entry->getType() != Entry::Type::list) return wrongType;
+            if (entry->getType() != Entry::Type::list) return {Reply::Type::error, wrongType};
         } else isNew = true;
 
         for (auto &element : elements) {
@@ -824,10 +789,10 @@ auto Database::lPush(std::string_view statement) -> std::string {
         }
     }
 
-    return integer + std::to_string(size);
+    return {Reply::Type::integer, static_cast<long>(size)};
 }
 
-auto Database::lPushX(std::string_view statement) -> std::string {
+auto Database::lPushX(std::string_view statement) -> Reply {
     unsigned long size{};
     {
         const unsigned long space{statement.find(' ')};
@@ -845,14 +810,14 @@ auto Database::lPushX(std::string_view statement) -> std::string {
 
                 for (auto &element : elements) list.emplace_front(std::move(element));
                 size = list.size();
-            } else return wrongType;
+            } else return {Reply::Type::error, wrongType};
         }
     }
 
-    return integer + std::to_string(size);
+    return {Reply::Type::integer, static_cast<long>(size)};
 }
 
-auto Database::crement(const std::string_view key, const long digital, const bool isPlus) -> std::string {
+auto Database::crement(const std::string_view key, const long digital, const bool isPlus) -> Reply {
     long number;
     {
         const std::lock_guard lockGuard{this->lock};
@@ -863,8 +828,8 @@ auto Database::crement(const std::string_view key, const long digital, const boo
                     number = isPlus ? std::stol(value) + digital : std::stol(value) - digital;
 
                     value = std::to_string(number);
-                } else return wrongInteger;
-            } else return wrongType;
+                } else return {Reply::Type::error, wrongInteger};
+            } else return {Reply::Type::error, wrongType};
         } else {
             number = digital;
 
@@ -872,5 +837,8 @@ auto Database::crement(const std::string_view key, const long digital, const boo
         }
     }
 
-    return integer + std::to_string(number);
+    return {Reply::Type::integer, number};
 }
+
+const std::string Database::wrongType{"WRONGTYPE Operation against a key holding the wrong kind of value"},
+    Database::wrongInteger{"ERR value is not an integer or out of range"};

@@ -24,3 +24,5 @@ auto Client::send(const std::span<const std::byte> data) const noexcept -> Await
                    }
     };
 }
+
+auto Client::getContext() noexcept -> Context & { return this->context; }

@@ -1,6 +1,6 @@
 #include "Ring.hpp"
 
-#include "../../../common/log/Exception.hpp"
+#include "../../../common/Exception.hpp"
 #include "Completion.hpp"
 #include "Submission.hpp"
 

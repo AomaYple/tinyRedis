@@ -5,6 +5,9 @@
 
 #include <source_location>
 
+class Answer;
+class Context;
+
 class DatabaseManager final : public FileDescriptor {
 public:
     [[nodiscard]] static auto create(std::source_location sourceLocation = std::source_location::current()) -> int;
@@ -21,7 +24,7 @@ public:
 
     ~DatabaseManager() override = default;
 
-    auto query(std::span<const std::byte> request) -> std::vector<std::byte>;
+    auto query(Context &context, Answer &&answer) -> Reply;
 
     [[nodiscard]] auto isWritable() -> bool;
 
@@ -34,12 +37,25 @@ public:
     auto wrote() noexcept -> void;
 
 private:
-    auto record(std::span<const std::byte> request) -> void;
+    [[nodiscard]] static auto multi(Context &context) -> Reply;
+
+    [[nodiscard]] static auto discard(Context &context) -> Reply;
+
+    [[nodiscard]] static auto transaction(Context &context, Answer &&answer) -> Reply;
+
+    [[nodiscard]] static auto select(Context &context, std::string_view statement) -> Reply;
+
+    auto record(std::span<const std::byte> answer) -> void;
 
     [[nodiscard]] auto serialize() -> std::vector<std::byte>;
 
-    std::unordered_map<unsigned long, Database> databases;
-    std::shared_mutex lock;
+    [[nodiscard]] auto exec(Context &context) -> Reply;
+
+    static constexpr unsigned long databaseCount{16};
+    static constexpr std::string filepath{"dump.aof"};
+
+    std::vector<Database> databases;
+    std::mutex lock;
     std::vector<std::byte> aofBuffer, writeBuffer;
     std::chrono::seconds seconds{};
     unsigned long writeCount{};

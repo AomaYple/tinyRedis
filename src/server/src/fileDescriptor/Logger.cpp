@@ -1,6 +1,6 @@
 #include "Logger.hpp"
 
-#include "../../../common/log/Exception.hpp"
+#include "../../../common/Exception.hpp"
 
 #include <fcntl.h>
 #include <linux/io_uring.h>
@@ -18,20 +18,20 @@ auto Logger::create(const std::string_view filename, const std::source_location 
 
 Logger::Logger(const int fileDescriptor) noexcept : FileDescriptor{fileDescriptor} {}
 
-auto Logger::push(Log &&log) -> void { this->logs.emplace(std::move(log)); }
+auto Logger::push(Log &&log) -> void { this->logs.emplace_back(std::move(log)); }
 
-auto Logger::isWritable() const noexcept -> bool { return !this->logs.empty() && this->data.empty(); }
+auto Logger::isWritable() const noexcept -> bool { return !this->logs.empty() && this->buffer.empty(); }
 
 auto Logger::write() -> Awaiter {
-    while (!this->logs.empty()) {
-        const std::vector byteLog{this->logs.front().toByte()};
-        this->data.insert(this->data.cend(), byteLog.cbegin(), byteLog.cend());
-        this->logs.pop();
+    for (const auto &log : this->logs) {
+        const std::vector bytes{log.toByte()};
+        this->buffer.insert(this->buffer.cend(), bytes.cbegin(), bytes.cend());
     }
+    this->logs.clear();
 
     return Awaiter{
-        Submission{this->getFileDescriptor(), IOSQE_FIXED_FILE, 0, 0, Submission::Write{this->data, 0}}
+        Submission{this->getFileDescriptor(), IOSQE_FIXED_FILE, 0, 0, Submission::Write{this->buffer, 0}}
     };
 }
 
-auto Logger::wrote() noexcept -> void { this->data.clear(); }
+auto Logger::wrote() noexcept -> void { this->buffer.clear(); }

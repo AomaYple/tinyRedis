@@ -1,7 +1,9 @@
 #include "Scheduler.hpp"
 
-#include "../../../common/log/Exception.hpp"
+#include "../../../common/Exception.hpp"
+#include "../../../common/Reply.hpp"
 #include "../fileDescriptor/Client.hpp"
+#include "../fileDescriptor/DatabaseManager.hpp"
 #include "../ring/Completion.hpp"
 #include "../ring/Ring.hpp"
 
@@ -132,7 +134,7 @@ auto Scheduler::accept(const std::source_location sourceLocation) -> Task {
             result >= 0 && (flags & IORING_CQE_F_MORE) != 0) {
             this->clients.emplace(result, Client{result});
 
-            const Client &client{this->clients.at(result)};
+            Client &client{this->clients.at(result)};
 
             this->submit(std::make_shared<Task>(this->receive(client)));
         } else {
@@ -162,7 +164,7 @@ auto Scheduler::timing(const std::source_location sourceLocation) -> Task {
     this->eraseCurrentTask();
 }
 
-auto Scheduler::receive(const Client &client, const std::source_location sourceLocation) -> Task {
+auto Scheduler::receive(Client &client, const std::source_location sourceLocation) -> Task {
     std::vector<std::byte> receiveBuffer;
 
     while (true) {
@@ -175,7 +177,7 @@ auto Scheduler::receive(const Client &client, const std::source_location sourceL
             receiveBuffer.insert(receiveBuffer.cend(), receivedData.cbegin(), receivedData.cend());
 
             if ((flags & IORING_CQE_F_SOCK_NONEMPTY) == 0) {
-                std::vector response{databaseManager.query(receiveBuffer)};
+                std::vector response{databaseManager.query(client.getContext(), Answer{receiveBuffer}).serialize()};
                 receiveBuffer.clear();
 
                 this->submit(std::make_shared<Task>(this->send(client, std::move(response))));

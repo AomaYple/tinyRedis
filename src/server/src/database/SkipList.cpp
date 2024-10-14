@@ -94,12 +94,16 @@ auto SkipList::erase(const std::string_view key) const noexcept -> bool {
 }
 
 auto SkipList::serialize() const -> std::vector<std::byte> {
-    std::vector<std::byte> serialization{sizeof(unsigned long)};
+    std::vector<std::byte> serialization;
     for (const Node *node{this->levels.front()->next}; node != nullptr; node = node->next) {
         const std::vector serializedEntry{node->entry->serialize()};
+
+        const unsigned long size{serializedEntry.size()};
+        const auto sizeBytes{std::as_bytes(std::span{&size, 1})};
+        serialization.insert(serialization.cend(), sizeBytes.cbegin(), sizeBytes.cend());
+
         serialization.insert(serialization.cend(), serializedEntry.cbegin(), serializedEntry.cend());
     }
-    *reinterpret_cast<unsigned long *>(serialization.data()) = serialization.size() - sizeof(unsigned long);
 
     return serialization;
 }

@@ -1,13 +1,15 @@
 #pragma once
 
-#include "../fileDescriptor/DatabaseManager.hpp"
 #include "../fileDescriptor/Logger.hpp"
 #include "../fileDescriptor/Server.hpp"
 #include "../fileDescriptor/Timer.hpp"
 #include "../ring/BufferGroup.hpp"
 #include "../ring/RingBuffer.hpp"
 
+#include <unordered_map>
+
 class Client;
+class DatabaseManager;
 
 class Scheduler {
     [[nodiscard]] static auto
@@ -45,8 +47,8 @@ private:
 
     [[nodiscard]] auto timing(std::source_location sourceLocation = std::source_location::current()) -> Task;
 
-    [[nodiscard]] auto receive(const Client &client,
-                               std::source_location sourceLocation = std::source_location::current()) -> Task;
+    [[nodiscard]] auto receive(Client &client, std::source_location sourceLocation = std::source_location::current())
+        -> Task;
 
     [[nodiscard]] auto send(const Client &client, std::vector<std::byte> &&data,
                             std::source_location sourceLocation = std::source_location::current()) -> Task;

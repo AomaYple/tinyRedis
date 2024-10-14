@@ -1,9 +1,7 @@
 #pragma once
 
-#include "../../../common/log/Log.hpp"
+#include "../../../common/Log.hpp"
 #include "FileDescriptor.hpp"
-
-#include <queue>
 
 class Logger final : public FileDescriptor {
 public:
@@ -31,6 +29,6 @@ public:
     auto wrote() noexcept -> void;
 
 private:
-    std::queue<Log> logs;
-    std::vector<std::byte> data;
+    std::vector<Log> logs;
+    std::vector<std::byte> buffer;
 };

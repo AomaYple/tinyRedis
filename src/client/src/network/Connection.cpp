@@ -1,6 +1,6 @@
 #include "Connection.hpp"
 
-#include "../../../common/log/Exception.hpp"
+#include "../../../common/Exception.hpp"
 
 #include <arpa/inet.h>
 #include <utility>

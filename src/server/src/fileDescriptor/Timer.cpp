@@ -1,6 +1,6 @@
 #include "Timer.hpp"
 
-#include "../../../common/log/Exception.hpp"
+#include "../../../common/Exception.hpp"
 
 #include <linux/io_uring.h>
 #include <sys/timerfd.h>

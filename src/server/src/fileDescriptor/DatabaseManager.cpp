@@ -1,15 +1,13 @@
 #include "DatabaseManager.hpp"
 
-#include "../../../common/command/Command.hpp"
-#include "../../../common/log/Exception.hpp"
+#include "../../../common/Exception.hpp"
+#include "../../../common/Reply.hpp"
+#include "../database/Context.hpp"
 
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <linux/io_uring.h>
-#include <ranges>
-
-static constexpr std::string filepath{"dump.aof"};
 
 auto DatabaseManager::create(const std::source_location sourceLocation) -> int {
     const int fileDescriptor{open(filepath.data(), O_CREAT | O_WRONLY | O_APPEND | O_SYNC, S_IRUSR | S_IWUSR)};
@@ -20,8 +18,14 @@ auto DatabaseManager::create(const std::source_location sourceLocation) -> int {
     }
 
     if (std::filesystem::file_size(filepath) == 0) {
-        constexpr unsigned long count{};
-        if (::write(fileDescriptor, &count, sizeof(count)) == -1) {
+        std::vector<std::byte> serialization;
+        for (unsigned long i{}; i != databaseCount; ++i) {
+            constexpr unsigned long size{};
+            const auto bytes{std::as_bytes(std::span{&size, 1})};
+            serialization.insert(serialization.cend(), bytes.cbegin(), bytes.cend());
+        }
+
+        if (::write(fileDescriptor, serialization.data(), serialization.size()) == -1) {
             throw Exception{
                 Log{Log::Level::fatal, std::error_code{errno, std::generic_category()}.message(), sourceLocation}
             };
@@ -32,380 +36,138 @@ auto DatabaseManager::create(const std::source_location sourceLocation) -> int {
 }
 
 DatabaseManager::DatabaseManager(const int fileDescriptor) : FileDescriptor{fileDescriptor} {
-    for (unsigned char i{}; i != 16; ++i) this->databases.emplace(i, Database{i, std::span<const std::byte>{}});
+    for (unsigned long i{}; i != databaseCount; ++i) this->databases.emplace_back(i, std::span<const std::byte>{});
 
     if (std::ifstream file{filepath}; file.is_open()) {
         std::vector<std::byte> buffer{std::filesystem::file_size(filepath)};
         file.read(reinterpret_cast<char *>(buffer.data()), static_cast<long>(buffer.size()));
-        if (buffer.empty()) return;
+        std::span<const std::byte> bufferSpan{buffer};
 
-        std::span<const std::byte> data{buffer};
-        auto count{*reinterpret_cast<const unsigned long *>(data.data())};
-        data = data.subspan(sizeof(count));
+        for (unsigned long i{}; i != this->databases.size(); ++i) {
+            const auto size{*reinterpret_cast<const unsigned long *>(bufferSpan.data())};
+            bufferSpan = bufferSpan.subspan(sizeof(size));
 
-        while (count > 0) {
-            const auto index{*reinterpret_cast<const unsigned long *>(data.data())};
-            data = data.subspan(sizeof(index));
-
-            const auto size{*reinterpret_cast<const unsigned long *>(data.data())};
-            data = data.subspan(sizeof(size));
-
-            if (const auto result{this->databases.find(index)}; result != this->databases.cend())
-                result->second = Database{index, data.subspan(0, size)};
-            else this->databases.emplace(index, Database{index, data.subspan(0, size)});
-            data = data.subspan(size);
-
-            --count;
+            this->databases[i] = Database{i, bufferSpan.subspan(0, size)};
+            bufferSpan = bufferSpan.subspan(size);
         }
 
-        while (!data.empty()) {
-            const auto size{*reinterpret_cast<const unsigned long *>(data.data())};
-            data = data.subspan(sizeof(size));
+        Context context;
+        while (!bufferSpan.empty()) {
+            const auto size{*reinterpret_cast<const unsigned long *>(bufferSpan.data())};
+            bufferSpan = bufferSpan.subspan(sizeof(size));
 
-            this->query(data.subspan(0, size));
-            data = data.subspan(size);
+            this->query(context, Answer{bufferSpan.subspan(0, size)});
+            bufferSpan = bufferSpan.subspan(size);
         }
     }
 }
 
-auto DatabaseManager::query(std::span<const std::byte> request) -> std::vector<std::byte> {
-    const std::span requestCopy{request};
-
-    const auto command{static_cast<Command>(request.front())};
-    request = request.subspan(sizeof(command));
-
-    const auto index{*reinterpret_cast<const unsigned long *>(request.data())};
-    request = request.subspan(sizeof(index));
-
-    const std::string_view statement{reinterpret_cast<const char *>(request.data()), request.size()};
-
-    std::string response;
-    bool isRecord{};
-    switch (command) {
-        case Command::select:
-            {
-                const std::lock_guard lockGuard{this->lock};
-
-                this->databases.try_emplace(index, Database{index, std::span<const std::byte>{}});
-            }
-            response = "OK";
-            isRecord = true;
-
-            break;
-        case Command::del:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).del(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::exists:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).exists(statement);
-            }
-
-            break;
-        case Command::move:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).move(this->databases, statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::rename:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).rename(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::renameNx:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).renameNx(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::type:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).type(statement);
-            }
-
-            break;
-        case Command::set:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).set(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::get:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).get(statement);
-            }
-
-            break;
-        case Command::getRange:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).getRange(statement);
-            }
-
-            break;
-        case Command::getBit:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).getBit(statement);
-            }
-
-            break;
-        case Command::setBit:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).setBit(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::mGet:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).mGet(statement);
-            }
-
-            break;
-        case Command::setNx:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).setNx(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::setRange:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).setRange(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::strlen:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).strlen(statement);
-            }
-
-            break;
-        case Command::mSet:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).mSet(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::mSetNx:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).mSetNx(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::incr:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).incr(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::incrBy:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).incrBy(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::decr:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).decr(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::decrBy:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).decrBy(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::append:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).append(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::hDel:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).hDel(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::hExists:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).hExists(statement);
-            }
-
-            break;
-        case Command::hGet:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).hGet(statement);
-            }
-
-            break;
-        case Command::hGetAll:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).hGetAll(statement);
-            }
-
-            break;
-        case Command::hIncrBy:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).hIncrBy(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::hKeys:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).hKeys(statement);
-            }
-
-            break;
-        case Command::hLen:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).hLen(statement);
-            }
-
-            break;
-        case Command::hSet:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).hSet(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::hVals:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).hVals(statement);
-            }
-
-            break;
-        case Command::lIndex:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).lIndex(statement);
-            }
-
-            break;
-        case Command::lLen:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).lLen(statement);
-            }
-
-            break;
-        case Command::lPop:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).lPop(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::lPush:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).lPush(statement);
-            }
-            isRecord = true;
-
-            break;
-        case Command::lPushX:
-            {
-                const std::shared_lock sharedLock{this->lock};
-
-                response = this->databases.at(index).lPushX(statement);
-            }
-            isRecord = true;
-
-            break;
+auto DatabaseManager::query(Context &context, Answer &&answer) -> Reply {
+    const unsigned long databaseIndex{context.getDatabaseIndex()};
+
+    std::string_view statement{answer.getStatement()}, command;
+    if (const unsigned long position{statement.find(' ')}; position != std::string_view::npos) {
+        command = statement.substr(0, position);
+        statement.remove_prefix(position + 1);
+    } else {
+        command = statement;
+        statement = std::string_view{};
     }
-    if (isRecord) this->record(requestCopy);
-    const auto bytes{std::as_bytes(std::span{response})};
 
-    return {bytes.cbegin(), bytes.cend()};
+    Reply reply{Reply::Type::nil, 0};
+    bool isRecord{};
+    if (command == "MULTI") reply = multi(context);
+    else if (command == "EXEC") reply = this->exec(context);
+    else if (command == "DISCARD") reply = discard(context);
+    else if (context.getIsTransaction()) reply = transaction(context, std::move(answer));
+    else if (command == "SELECT") {
+        reply = select(context, statement);
+        isRecord = true;
+    } else if (command == "DEL") {
+        reply = this->databases[databaseIndex].del(statement);
+        isRecord = true;
+    } else if (command == "EXISTS") reply = this->databases[databaseIndex].exists(statement);
+    else if (command == "MOVE") {
+        reply = this->databases[databaseIndex].move(this->databases, statement);
+        isRecord = true;
+    } else if (command == "RENAME") {
+        reply = this->databases[databaseIndex].rename(statement);
+        isRecord = true;
+    } else if (command == "RENAMENX") {
+        reply = this->databases[databaseIndex].renameNx(statement);
+        isRecord = true;
+    } else if (command == "TYPE") reply = this->databases[databaseIndex].type(statement);
+    else if (command == "SET") {
+        reply = this->databases[databaseIndex].set(statement);
+        isRecord = true;
+    } else if (command == "GET") reply = this->databases[databaseIndex].get(statement);
+    else if (command == "GETRANGE") reply = this->databases[databaseIndex].getRange(statement);
+    else if (command == "GETBIT") reply = this->databases[databaseIndex].getBit(statement);
+    else if (command == "MGET") reply = this->databases[databaseIndex].mGet(statement);
+    else if (command == "SETBIT") {
+        reply = this->databases[databaseIndex].setBit(statement);
+        isRecord = true;
+    } else if (command == "SETNX") {
+        reply = this->databases[databaseIndex].setNx(statement);
+        isRecord = true;
+    } else if (command == "SETRANGE") {
+        reply = this->databases[databaseIndex].setRange(statement);
+        isRecord = true;
+    } else if (command == "STRLEN") reply = this->databases[databaseIndex].strlen(statement);
+    else if (command == "MSET") {
+        reply = this->databases[databaseIndex].mSet(statement);
+        isRecord = true;
+    } else if (command == "MSETNX") {
+        reply = this->databases[databaseIndex].mSetNx(statement);
+        isRecord = true;
+    } else if (command == "INCR") {
+        reply = this->databases[databaseIndex].incr(statement);
+        isRecord = true;
+    } else if (command == "INCRBY") {
+        reply = this->databases[databaseIndex].incrBy(statement);
+        isRecord = true;
+    } else if (command == "DECR") {
+        reply = this->databases[databaseIndex].decr(statement);
+        isRecord = true;
+    } else if (command == "DECRBY") {
+        reply = this->databases[databaseIndex].decrBy(statement);
+        isRecord = true;
+    } else if (command == "APPEND") {
+        reply = this->databases[databaseIndex].append(statement);
+        isRecord = true;
+    } else if (command == "HDEL") {
+        reply = this->databases[databaseIndex].hDel(statement);
+        isRecord = true;
+    } else if (command == "HEXISTS") reply = this->databases[databaseIndex].hExists(statement);
+    else if (command == "HGET") reply = this->databases[databaseIndex].hGet(statement);
+    else if (command == "HGETALL") reply = this->databases[databaseIndex].hGetAll(statement);
+    else if (command == "HINCRBY") {
+        reply = this->databases[databaseIndex].hIncrBy(statement);
+        isRecord = true;
+    } else if (command == "HKEYS") reply = this->databases[databaseIndex].hKeys(statement);
+    else if (command == "HLEN") reply = this->databases[databaseIndex].hLen(statement);
+    else if (command == "HSET") {
+        reply = this->databases[databaseIndex].hSet(statement);
+        isRecord = true;
+    } else if (command == "HVALS") reply = this->databases[databaseIndex].hVals(statement);
+    else if (command == "LINDEX") reply = this->databases[databaseIndex].lIndex(statement);
+    else if (command == "LLEN") reply = this->databases[databaseIndex].lLen(statement);
+    else if (command == "LPOP") {
+        reply = this->databases[databaseIndex].lPop(statement);
+        isRecord = true;
+    } else if (command == "LPUSH") {
+        reply = this->databases[databaseIndex].lPush(statement);
+        isRecord = true;
+    } else if (command == "LPUSHX") {
+        reply = this->databases[databaseIndex].lPushX(statement);
+        isRecord = true;
+    }
+    reply.setDatabaseIndex(context.getDatabaseIndex());
+    reply.setIsTransaction(context.getIsTransaction());
+
+    if (isRecord) this->record(answer.serialize());
+
+    return reply;
 }
 
 auto DatabaseManager::isWritable() -> bool {
@@ -451,27 +213,60 @@ auto DatabaseManager::write() const noexcept -> Awaiter {
 
 auto DatabaseManager::wrote() noexcept -> void { this->writeBuffer.clear(); }
 
-auto DatabaseManager::record(const std::span<const std::byte> request) -> void {
+auto DatabaseManager::multi(Context &context) -> Reply {
+    context.setIsTransaction(true);
+
+    return {Reply::Type::status, "OK"};
+}
+
+auto DatabaseManager::discard(Context &context) -> Reply {
+    context.setIsTransaction(false);
+    context.clearAnswers();
+
+    return {Reply::Type::status, "OK"};
+}
+
+auto DatabaseManager::transaction(Context &context, Answer &&answer) -> Reply {
+    context.addAnswer(std::move(answer));
+
+    return {Reply::Type::status, "QUEUED"};
+}
+
+auto DatabaseManager::select(Context &context, const std::string_view statement) -> Reply {
+    context.setDatabaseIndex(std::stoul(std::string{statement}));
+
+    return {Reply::Type::status, "OK"};
+}
+
+auto DatabaseManager::record(const std::span<const std::byte> answer) -> void {
     const std::lock_guard lockGuard{this->lock};
 
-    const unsigned long requestSize{request.size()};
-    this->aofBuffer.insert(this->aofBuffer.cend(), sizeof(requestSize), std::byte{});
-    *reinterpret_cast<std::remove_const_t<decltype(requestSize)> *>(this->aofBuffer.data() + this->aofBuffer.size() -
-                                                                    sizeof(requestSize)) = requestSize;
-    this->aofBuffer.insert(this->aofBuffer.cend(), request.cbegin(), request.cend());
+    const unsigned long size{answer.size()};
+    const auto sizeBytes{std::as_bytes(std::span{&size, 1})};
+    this->aofBuffer.insert(this->aofBuffer.cend(), sizeBytes.cbegin(), sizeBytes.cend());
+
+    this->aofBuffer.insert(this->aofBuffer.cend(), answer.cbegin(), answer.cend());
 
     ++this->writeCount;
 }
 
 auto DatabaseManager::serialize() -> std::vector<std::byte> {
-    const unsigned long size{this->databases.size()};
-    std::vector<std::byte> serialization{sizeof(size)};
-    *reinterpret_cast<std::remove_const_t<decltype(size)> *>(serialization.data()) = size;
+    std::vector<std::byte> serialization;
 
-    for (auto &database : this->databases | std::views::values) {
-        const std::vector subSerialization{database.serialize()};
-        serialization.insert(serialization.cend(), subSerialization.cbegin(), subSerialization.cend());
+    for (auto &database : this->databases) {
+        const std::vector serializedDatabase{database.serialize()};
+        serialization.insert(serialization.cend(), serializedDatabase.cbegin(), serializedDatabase.cend());
     }
 
     return serialization;
+}
+
+auto DatabaseManager::exec(Context &context) -> Reply {
+    std::vector<Reply> replies;
+
+    context.setIsTransaction(false);
+    for (Answer &answer : context.getAnswers()) replies.emplace_back(Reply{this->query(context, std::move(answer))});
+    context.clearAnswers();
+
+    return {Reply::Type::array, std::move(replies)};
 }

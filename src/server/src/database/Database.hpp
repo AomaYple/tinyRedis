@@ -3,7 +3,8 @@
 #include "SkipList.hpp"
 
 #include <shared_mutex>
-#include <unordered_map>
+
+class Reply;
 
 class Database {
 public:
@@ -21,81 +22,83 @@ public:
 
     [[nodiscard]] auto serialize() -> std::vector<std::byte>;
 
-    [[nodiscard]] auto del(std::string_view statement) -> std::string;
+    [[nodiscard]] auto del(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto exists(std::string_view statement) -> std::string;
+    [[nodiscard]] auto exists(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto move(std::unordered_map<unsigned long, Database> &databases, std::string_view statement)
-        -> std::string;
+    [[nodiscard]] auto move(std::span<Database> databases, std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto rename(std::string_view statement) -> std::string;
+    [[nodiscard]] auto rename(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto renameNx(std::string_view statement) -> std::string;
+    [[nodiscard]] auto renameNx(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto type(std::string_view statement) -> std::string;
+    [[nodiscard]] auto type(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto set(std::string_view statement) -> std::string;
+    [[nodiscard]] auto set(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto get(std::string_view statement) -> std::string;
+    [[nodiscard]] auto get(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto getRange(std::string_view statement) -> std::string;
+    [[nodiscard]] auto getRange(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto getBit(std::string_view statement) -> std::string;
+    [[nodiscard]] auto getBit(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto mGet(std::string_view statement) -> std::string;
+    [[nodiscard]] auto mGet(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto setBit(std::string_view statement) -> std::string;
+    [[nodiscard]] auto setBit(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto setNx(std::string_view statement) -> std::string;
+    [[nodiscard]] auto setNx(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto setRange(std::string_view statement) -> std::string;
+    [[nodiscard]] auto setRange(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto strlen(std::string_view statement) -> std::string;
+    [[nodiscard]] auto strlen(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto mSet(std::string_view statement) -> std::string;
+    [[nodiscard]] auto mSet(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto mSetNx(std::string_view statement) -> std::string;
+    [[nodiscard]] auto mSetNx(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto incr(std::string_view statement) -> std::string;
+    [[nodiscard]] auto incr(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto incrBy(std::string_view statement) -> std::string;
+    [[nodiscard]] auto incrBy(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto decr(std::string_view statement) -> std::string;
+    [[nodiscard]] auto decr(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto decrBy(std::string_view statement) -> std::string;
+    [[nodiscard]] auto decrBy(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto append(std::string_view statement) -> std::string;
+    [[nodiscard]] auto append(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto hDel(std::string_view statement) -> std::string;
+    [[nodiscard]] auto hDel(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto hExists(std::string_view statement) -> std::string;
+    [[nodiscard]] auto hExists(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto hGet(std::string_view statement) -> std::string;
+    [[nodiscard]] auto hGet(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto hGetAll(std::string_view statement) -> std::string;
+    [[nodiscard]] auto hGetAll(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto hIncrBy(std::string_view statement) -> std::string;
+    [[nodiscard]] auto hIncrBy(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto hKeys(std::string_view statement) -> std::string;
+    [[nodiscard]] auto hKeys(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto hLen(std::string_view statement) -> std::string;
+    [[nodiscard]] auto hLen(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto hSet(std::string_view statement) -> std::string;
+    [[nodiscard]] auto hSet(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto hVals(std::string_view statement) -> std::string;
+    [[nodiscard]] auto hVals(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto lIndex(std::string_view statement) -> std::string;
+    [[nodiscard]] auto lIndex(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto lLen(std::string_view statement) -> std::string;
+    [[nodiscard]] auto lLen(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto lPop(std::string_view statement) -> std::string;
+    [[nodiscard]] auto lPop(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto lPush(std::string_view statement) -> std::string;
+    [[nodiscard]] auto lPush(std::string_view statement) -> Reply;
 
-    [[nodiscard]] auto lPushX(std::string_view statement) -> std::string;
+    [[nodiscard]] auto lPushX(std::string_view statement) -> Reply;
 
 private:
-    [[nodiscard]] auto crement(std::string_view key, long digital, bool isPlus) -> std::string;
+    [[nodiscard]] auto crement(std::string_view key, long digital, bool isPlus) -> Reply;
+
+    static constexpr std::string ok{"OK"};
+    static const std::string wrongType, wrongInteger;
 
     unsigned long index;
     SkipList skipList;
