@@ -18,7 +18,7 @@ SkipList::SkipList(std::span<const std::byte> serialization) {
 
 SkipList::SkipList(const SkipList &other) : levels{other.copy()} {}
 
-SkipList::SkipList(SkipList &&other) noexcept : levels{std::exchange(other.levels, {})} {}
+SkipList::SkipList(SkipList &&other) noexcept : levels{std::exchange(other.levels, std::array<Node *, 32>{})} {}
 
 auto SkipList::operator=(const SkipList &other) -> SkipList & {
     if (this == &other) return *this;
@@ -35,7 +35,7 @@ auto SkipList::operator=(SkipList &&other) noexcept -> SkipList & {
 
     this->destroy();
 
-    this->levels = std::exchange(other.levels, {});
+    this->levels = std::exchange(other.levels, std::array<Node *, 32>{});
 
     return *this;
 }
