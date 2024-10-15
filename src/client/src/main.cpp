@@ -5,7 +5,8 @@
 #include <iostream>
 #include <print>
 
-constexpr auto printReply(const Reply &reply, unsigned long &databaseIndex, bool &isTransaction) -> void {
+constexpr auto printReply(const Reply &reply, unsigned long &databaseIndex, bool &isTransaction,
+                          const std::string &leadSpace) -> void {
     databaseIndex = reply.getDatabaseIndex();
     isTransaction = reply.getIsTransaction();
 
@@ -29,9 +30,10 @@ constexpr auto printReply(const Reply &reply, unsigned long &databaseIndex, bool
             const std::span replies{reply.getArray()};
             if (!replies.empty()) {
                 for (unsigned long i{}; i != replies.size(); ++i) {
-                    std::print("{}) ", std::to_string(i + 1));
+                    const std::string index{std::to_string(i + 1) + ") "};
+                    std::print("{}{}", i != 0 ? leadSpace : std::string_view{}, index);
 
-                    printReply(replies[i], databaseIndex, isTransaction);
+                    printReply(replies[i], databaseIndex, isTransaction, leadSpace + std::string(index.size(), ' '));
                 }
             } else std::println("(empty array)");
 
@@ -60,7 +62,7 @@ auto main() -> int {
 
         connection.send(Answer{std::move(input)}.serialize());
 
-        printReply(Reply{connection.receive()}, databaseIndex, isTransaction);
+        printReply(Reply{connection.receive()}, databaseIndex, isTransaction, std::string{});
     }
 
     return 0;
