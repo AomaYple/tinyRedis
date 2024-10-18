@@ -171,7 +171,7 @@ auto Scheduler::receive(Client &client, const std::source_location sourceLocatio
         if (const auto [result, flags]{co_await client.receive(this->ringBuffer.getId())};
             result > 0 && (flags & IORING_CQE_F_MORE) != 0) {
             const auto index{static_cast<unsigned short>(flags >> IORING_CQE_BUFFER_SHIFT)};
-            const std::span buffer{this->bufferGroup.getBuffer(index)}, receivedData{buffer.subspan(0, result)};
+            const std::span buffer{this->bufferGroup.getBuffer(index)}, receivedData{buffer.first(result)};
             this->ringBuffer.addBuffer(buffer, index);
 
             receiveBuffer.insert(receiveBuffer.cend(), receivedData.cbegin(), receivedData.cend());

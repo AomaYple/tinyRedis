@@ -41,7 +41,7 @@ DatabaseManager::DatabaseManager(const int fileDescriptor) : FileDescriptor{file
             const auto size{*reinterpret_cast<const unsigned long *>(bufferSpan.data())};
             bufferSpan = bufferSpan.subspan(sizeof(size));
 
-            this->databases[i] = Database{i, bufferSpan.subspan(0, size)};
+            this->databases[i] = Database{i, bufferSpan.first(size)};
             bufferSpan = bufferSpan.subspan(size);
         }
 
@@ -50,7 +50,7 @@ DatabaseManager::DatabaseManager(const int fileDescriptor) : FileDescriptor{file
             const auto size{*reinterpret_cast<const unsigned long *>(bufferSpan.data())};
             bufferSpan = bufferSpan.subspan(sizeof(size));
 
-            this->query(context, Answer{bufferSpan.subspan(0, size)});
+            this->query(context, Answer{bufferSpan.first(size)});
             bufferSpan = bufferSpan.subspan(size);
         }
     }

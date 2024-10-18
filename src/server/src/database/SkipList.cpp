@@ -11,7 +11,7 @@ SkipList::SkipList(std::span<const std::byte> serialization) {
         const auto size{*reinterpret_cast<const unsigned long *>(serialization.data())};
         serialization = serialization.subspan(sizeof(size));
 
-        this->insert(std::make_shared<Entry>(serialization.subspan(0, size)));
+        this->insert(std::make_shared<Entry>(serialization.first(size)));
         serialization = serialization.subspan(size);
     }
 }

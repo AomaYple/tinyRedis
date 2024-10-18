@@ -123,7 +123,7 @@ auto Reply::deserializeArray(std::span<const std::byte> data) -> void {
         const auto size{*reinterpret_cast<const unsigned long *>(data.data())};
         data = data.subspan(sizeof(size));
 
-        replies.emplace_back(data.subspan(0, size));
+        replies.emplace_back(data.first(size));
         data = data.subspan(size);
     }
 
