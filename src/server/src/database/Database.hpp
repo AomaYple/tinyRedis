@@ -22,6 +22,8 @@ public:
 
     [[nodiscard]] auto serialize() -> std::vector<std::byte>;
 
+    auto flushDb() -> Reply;
+
     [[nodiscard]] auto del(std::string_view statement) -> Reply;
 
     [[nodiscard]] auto exists(std::string_view statement) -> Reply;

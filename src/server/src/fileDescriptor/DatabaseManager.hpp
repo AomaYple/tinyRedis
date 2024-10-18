@@ -53,11 +53,13 @@ private:
 
     [[nodiscard]] auto exec(Context &context) -> Reply;
 
+    [[nodiscard]] auto flushAll() -> Reply;
+
     static constexpr unsigned long databaseCount{16};
     static constexpr std::string filepath{"dump.aof"};
 
     std::vector<Database> databases;
-    std::mutex lock;
+    std::shared_mutex lock;
     std::vector<std::byte> aofBuffer, writeBuffer;
     std::chrono::seconds seconds{};
     unsigned long writeCount{};

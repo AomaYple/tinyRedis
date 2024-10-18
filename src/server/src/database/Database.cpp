@@ -53,6 +53,16 @@ auto Database::serialize() -> std::vector<std::byte> {
     return serialization;
 }
 
+auto Database::flushDb() -> Reply {
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        this->skipList.clear();
+    }
+
+    return {Reply::Type::status, ok};
+}
+
 auto Database::del(const std::string_view statement) -> Reply {
     long count{};
     std::vector<std::string_view> keys;

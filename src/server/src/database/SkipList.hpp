@@ -32,6 +32,8 @@ public:
 
     auto erase(std::string_view key) const noexcept -> bool;
 
+    auto clear() noexcept -> void;
+
     [[nodiscard]] auto serialize() const -> std::vector<std::byte>;
 
 private:

@@ -74,86 +74,245 @@ auto DatabaseManager::query(Context &context, Answer &&answer) -> Reply {
     else if (command == "EXEC") reply = this->exec(context);
     else if (command == "DISCARD") reply = discard(context);
     else if (context.getIsTransaction()) reply = transaction(context, std::move(answer));
-    else if (command == "SELECT") {
+    else if (command == "FLUSHALL") reply = flushAll();
+    else if (command == "FLUSHDB") {
+        {
+            const std::shared_lock lockGuard{this->lock};
+
+            reply = this->databases[databaseIndex].flushDb();
+        }
+
+        isRecord = true;
+    } else if (command == "SELECT") {
         reply = select(context, statement);
         isRecord = true;
     } else if (command == "DEL") {
-        reply = this->databases[databaseIndex].del(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].del(statement);
+        }
+
         isRecord = true;
-    } else if (command == "EXISTS") reply = this->databases[databaseIndex].exists(statement);
-    else if (command == "MOVE") {
-        reply = this->databases[databaseIndex].move(this->databases, statement);
+    } else if (command == "EXISTS") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].exists(statement);
+    } else if (command == "MOVE") {
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].move(this->databases, statement);
+        }
+
         isRecord = true;
     } else if (command == "RENAME") {
-        reply = this->databases[databaseIndex].rename(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].rename(statement);
+        }
+
         isRecord = true;
     } else if (command == "RENAMENX") {
-        reply = this->databases[databaseIndex].renameNx(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].renameNx(statement);
+        }
+
         isRecord = true;
-    } else if (command == "TYPE") reply = this->databases[databaseIndex].type(statement);
-    else if (command == "SET") {
-        reply = this->databases[databaseIndex].set(statement);
+    } else if (command == "TYPE") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].type(statement);
+    } else if (command == "SET") {
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].set(statement);
+        }
+
         isRecord = true;
-    } else if (command == "GET") reply = this->databases[databaseIndex].get(statement);
-    else if (command == "GETRANGE") reply = this->databases[databaseIndex].getRange(statement);
-    else if (command == "GETBIT") reply = this->databases[databaseIndex].getBit(statement);
-    else if (command == "MGET") reply = this->databases[databaseIndex].mGet(statement);
-    else if (command == "SETBIT") {
-        reply = this->databases[databaseIndex].setBit(statement);
+    } else if (command == "GET") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].get(statement);
+    } else if (command == "GETRANGE") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].getRange(statement);
+    } else if (command == "GETBIT") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].getBit(statement);
+    } else if (command == "MGET") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].mGet(statement);
+    } else if (command == "SETBIT") {
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].setBit(statement);
+        }
+
         isRecord = true;
     } else if (command == "SETNX") {
-        reply = this->databases[databaseIndex].setNx(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].setNx(statement);
+        }
+
         isRecord = true;
     } else if (command == "SETRANGE") {
-        reply = this->databases[databaseIndex].setRange(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].setRange(statement);
+        }
+
         isRecord = true;
-    } else if (command == "STRLEN") reply = this->databases[databaseIndex].strlen(statement);
-    else if (command == "MSET") {
-        reply = this->databases[databaseIndex].mSet(statement);
+    } else if (command == "STRLEN") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].strlen(statement);
+    } else if (command == "MSET") {
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].mSet(statement);
+        }
+
         isRecord = true;
     } else if (command == "MSETNX") {
-        reply = this->databases[databaseIndex].mSetNx(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].mSetNx(statement);
+        }
+
         isRecord = true;
     } else if (command == "INCR") {
-        reply = this->databases[databaseIndex].incr(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].incr(statement);
+        }
+
         isRecord = true;
     } else if (command == "INCRBY") {
-        reply = this->databases[databaseIndex].incrBy(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].incrBy(statement);
+        }
+
         isRecord = true;
     } else if (command == "DECR") {
-        reply = this->databases[databaseIndex].decr(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].decr(statement);
+        }
+
         isRecord = true;
     } else if (command == "DECRBY") {
-        reply = this->databases[databaseIndex].decrBy(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].decrBy(statement);
+        }
+
         isRecord = true;
     } else if (command == "APPEND") {
-        reply = this->databases[databaseIndex].append(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].append(statement);
+        }
+
         isRecord = true;
     } else if (command == "HDEL") {
-        reply = this->databases[databaseIndex].hDel(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].hDel(statement);
+        }
+
         isRecord = true;
-    } else if (command == "HEXISTS") reply = this->databases[databaseIndex].hExists(statement);
-    else if (command == "HGET") reply = this->databases[databaseIndex].hGet(statement);
-    else if (command == "HGETALL") reply = this->databases[databaseIndex].hGetAll(statement);
-    else if (command == "HINCRBY") {
-        reply = this->databases[databaseIndex].hIncrBy(statement);
+    } else if (command == "HEXISTS") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].hExists(statement);
+    } else if (command == "HGET") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].hGet(statement);
+    } else if (command == "HGETALL") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].hGetAll(statement);
+    } else if (command == "HINCRBY") {
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].hIncrBy(statement);
+        }
+
         isRecord = true;
-    } else if (command == "HKEYS") reply = this->databases[databaseIndex].hKeys(statement);
-    else if (command == "HLEN") reply = this->databases[databaseIndex].hLen(statement);
-    else if (command == "HSET") {
-        reply = this->databases[databaseIndex].hSet(statement);
+    } else if (command == "HKEYS") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].hKeys(statement);
+    } else if (command == "HLEN") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].hLen(statement);
+    } else if (command == "HSET") {
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].hSet(statement);
+        }
+
         isRecord = true;
-    } else if (command == "HVALS") reply = this->databases[databaseIndex].hVals(statement);
-    else if (command == "LINDEX") reply = this->databases[databaseIndex].lIndex(statement);
-    else if (command == "LLEN") reply = this->databases[databaseIndex].lLen(statement);
-    else if (command == "LPOP") {
-        reply = this->databases[databaseIndex].lPop(statement);
+    } else if (command == "HVALS") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].hVals(statement);
+    } else if (command == "LINDEX") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].lIndex(statement);
+    } else if (command == "LLEN") {
+        const std::shared_lock lock{this->lock};
+
+        reply = this->databases[databaseIndex].lLen(statement);
+    } else if (command == "LPOP") {
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].lPop(statement);
+        }
+
         isRecord = true;
     } else if (command == "LPUSH") {
-        reply = this->databases[databaseIndex].lPush(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].lPush(statement);
+        }
+
         isRecord = true;
     } else if (command == "LPUSHX") {
-        reply = this->databases[databaseIndex].lPushX(statement);
+        {
+            const std::shared_lock lock{this->lock};
+
+            reply = this->databases[databaseIndex].lPushX(statement);
+        }
+
         isRecord = true;
     }
     reply.setDatabaseIndex(context.getDatabaseIndex());
@@ -275,4 +434,14 @@ auto DatabaseManager::exec(Context &context) -> Reply {
     context.clearAnswers();
 
     return {Reply::Type::array, std::move(replies)};
+}
+
+auto DatabaseManager::flushAll() -> Reply {
+    {
+        const std::lock_guard lockGuard{this->lock};
+
+        for (auto &database : this->databases) database.flushDb();
+    }
+
+    return {Reply::Type::status, "OK"};
 }

@@ -93,6 +93,19 @@ auto SkipList::erase(const std::string_view key) const noexcept -> bool {
     return isSuccess;
 }
 
+auto SkipList::clear() noexcept -> void {
+    for (Node *&level : this->levels) {
+        const Node *node{level->next};
+        while (node != nullptr) {
+            const Node *const next{node->next};
+            delete node;
+            node = next;
+        }
+
+        level->next = nullptr;
+    }
+}
+
 auto SkipList::serialize() const -> std::vector<std::byte> {
     std::vector<std::byte> serialization;
     for (const Node *node{this->levels.front()->next}; node != nullptr; node = node->next) {
