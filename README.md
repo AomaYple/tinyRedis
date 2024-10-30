@@ -34,7 +34,7 @@
 
 自动处理SIGTERM和SIGINT信号，释放所有资源后优雅地关闭服务器
 
-## 环境
+## 依赖
 
 Linux内核6.1及以上，GCC14及以上，CMake，Ninja，liburing2.7及以上
 
