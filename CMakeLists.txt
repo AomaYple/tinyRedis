@@ -1,12 +1,12 @@
-cmake_minimum_required(VERSION 3.30.5)
+cmake_minimum_required(VERSION 3.24)
 
 project(tinyRedis)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
-set(PATH ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME})
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+set(PATH ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME})
 
 add_compile_options(
         -Wall -Wextra -Wpedantic
