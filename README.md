@@ -1,6 +1,6 @@
 ## 介绍
 
-本项目是Linux上基于C++和io_uring的轻量级Redis
+本项目是Linux上一个基于协程和io_uring的C++的轻量级Redis
 
 ## 数据结构
 
