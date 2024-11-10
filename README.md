@@ -40,7 +40,7 @@ Linux内核6.1及以上，GCC14及以上，liburing2.7及以上
 
 ## 构建
 
-```shell 
+```shell
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cd build
 ninja
