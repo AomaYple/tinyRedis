@@ -4,7 +4,11 @@ add_executable(${PROJECT_NAME})
 
 set_target_properties(${PROJECT_NAME}
         PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${PATH}/${PROJECT_NAME}
+        CXX_STANDARD ${CMAKE_CXX_STANDARD_LATEST}
+        CXX_STANDARD_REQUIRED ON
+        COMPILE_WARNING_AS_ERROR ON
+        INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE
+        RUNTIME_OUTPUT_DIRECTORY ${ROOT_PATH}/${PROJECT_NAME}
 )
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
@@ -18,13 +22,14 @@ target_sources(${PROJECT_NAME}
 
 target_compile_options(${PROJECT_NAME}
         PRIVATE
-        $<$<CONFIG:Debug>:-Og -fsanitize=address>
-        $<$<CONFIG:Release>:-Ofast -march=native>
+        -Wall -Wextra -Wpedantic
+        $<$<CONFIG:Debug>:-Og -fsanitize=address -fsanitize=leak -fsanitize=undefined>
+        $<$<CONFIG:Release>:-Ofast>
 )
 
 target_link_options(${PROJECT_NAME}
         PRIVATE
-        $<$<CONFIG:Debug>:-fsanitize=address>
+        $<$<CONFIG:Debug>:-fsanitize=address -fsanitize=leak -fsanitize=undefined>
 )
 
 target_link_libraries(${PROJECT_NAME}

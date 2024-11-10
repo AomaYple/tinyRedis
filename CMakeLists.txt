@@ -2,15 +2,7 @@ cmake_minimum_required(VERSION 3.30)
 
 project(tinyRedis)
 
-set(CMAKE_CXX_STANDARD ${CMAKE_CXX_STANDARD_LATEST})
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-set(PATH ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME})
-
-add_compile_options(
-        -Wall -Wextra -Wpedantic
-)
+set(ROOT_PATH ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME})
 
 add_subdirectory(src/client)
 add_subdirectory(src/server)
